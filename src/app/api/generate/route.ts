@@ -1,6 +1,6 @@
 // /api/generate - 服务端代理生成图片
-// GET: 代理生成（Vercel Hobby兼容，9秒内返回base64）
-// POST: 额度检查 + 付费API
+// GET: 快速生成（Pollinations免费，9秒内返回base64）
+// POST: 付费API（Replicate高质量+透明背景）
 
 import { NextRequest, NextResponse } from "next/server";
 
@@ -8,14 +8,14 @@ const STYLE_PROMPTS: Record<string, string> = {
   cute: "cute kawaii chibi style sticker",
   cartoon: "cartoon style sticker with bold outlines",
   pixel: "pixel art style sticker, 16-bit retro game aesthetic",
-  realistic: "realistic detailed sticker with shading and highlights",
-  minimal: "minimalist flat design sticker, clean simple shapes",
-  vintage: "vintage retro style sticker, aged paper texture",
+  realistic: "photorealistic sticker, real photograph style, detailed textures, natural lighting, lifelike shading, 8k resolution",
+  minimal: "minimalist flat design sticker, clean simple shapes, limited color palette, geometric",
+  vintage: "vintage retro style sticker, aged paper texture, faded colors, distressed look, 1970s aesthetic",
 };
 
 const BLOCKED = ["nude", "nsfw", "porn", "violent", "gore", "hate"];
 
-// GET: 代理生成图片，返回base64 data URL
+// GET: 优先Pollinations免费生成，Vercel Hobby 9秒超时
 export async function GET(req: NextRequest) {
   const userPrompt = req.nextUrl.searchParams.get("prompt");
   const styleId = req.nextUrl.searchParams.get("style") || "cute";
@@ -36,26 +36,27 @@ export async function GET(req: NextRequest) {
   const stylePrompt = STYLE_PROMPTS[styleId] || "sticker design";
   const fullPrompt = `${stylePrompt}, ${userPrompt}, sticker, white outline, die-cut sticker shape, clean background, vibrant colors, high quality`;
 
-  // 优先使用付费API
+  // 优先使用Replicate（如果配置了）
   if (process.env.REPLICATE_API_TOKEN) {
     try {
       const result = await generateWithReplicate(fullPrompt);
-      return NextResponse.json({ success: true, imageUrl: result });
+      return NextResponse.json({ success: true, imageUrl: result, source: "replicate" });
     } catch (e) {
       console.error("Replicate failed, fallback:", e);
     }
   }
 
+  // OpenAI备选
   if (process.env.OPENAI_API_KEY) {
     try {
       const result = await generateWithOpenAI(fullPrompt);
-      return NextResponse.json({ success: true, imageUrl: result });
+      return NextResponse.json({ success: true, imageUrl: result, source: "openai" });
     } catch (e) {
       console.error("OpenAI failed, fallback:", e);
     }
   }
 
-  // Pollinations免费生成
+  // Pollinations免费生成（最快，无水印）
   try {
     const encoded = encodeURIComponent(fullPrompt);
     const seed = Math.floor(Math.random() * 100000);
@@ -96,7 +97,7 @@ export async function GET(req: NextRequest) {
     const base64 = buffer.toString("base64");
     const dataUrl = `data:${contentType.includes("png") ? "image/png" : "image/jpeg"};base64,${base64}`;
 
-    return NextResponse.json({ success: true, imageUrl: dataUrl });
+    return NextResponse.json({ success: true, imageUrl: dataUrl, source: "pollinations" });
   } catch (e: any) {
     if (e.name === "AbortError") {
       return NextResponse.json(
@@ -111,7 +112,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST: 额度检查（保留给付费功能用）
+// POST: 专用付费生成（Replicate高质量+透明背景）
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -123,7 +124,19 @@ export async function POST(req: NextRequest) {
       authUser = await getCurrentUser();
     } catch { /* no auth */ }
 
-    // 返回生成URL让前端调GET
+    // Pro用户优先用Replicate
+    if (authUser?.plan === "pro" && process.env.REPLICATE_API_TOKEN) {
+      try {
+        const stylePrompt = STYLE_PROMPTS[style] || "sticker design";
+        const fullPrompt = `${stylePrompt}, ${prompt}, sticker, white outline, die-cut sticker shape, clean background, vibrant colors, high quality`;
+        const result = await generateWithReplicate(fullPrompt, true); // 透明背景
+        return NextResponse.json({ success: true, imageUrl: result, pro: true });
+      } catch (e) {
+        console.error("Pro generation failed:", e);
+      }
+    }
+
+    // 免费用户返回生成URL让前端调GET
     const stylePrompt = STYLE_PROMPTS[style] || "sticker design";
     const fullPrompt = `${stylePrompt}, ${prompt}, sticker, white outline, die-cut sticker shape, clean background, vibrant colors, high quality`;
     const encoded = encodeURIComponent(fullPrompt);
@@ -140,21 +153,34 @@ export async function POST(req: NextRequest) {
   }
 }
 
-async function generateWithReplicate(prompt: string): Promise<string> {
+async function generateWithReplicate(prompt: string, transparent: boolean = false): Promise<string> {
   const token = process.env.REPLICATE_API_TOKEN!;
+  
+  // 使用Flux Schnell（快速模型，2-3秒出图）
   const response = await fetch("https://api.replicate.com/v1/predictions", {
     method: "POST",
     headers: { Authorization: `Token ${token}`, "Content-Type": "application/json", Prefer: "respond-async" },
     body: JSON.stringify({
       version: "black-forest-labs/flux-schnell",
-      input: { prompt, num_outputs: 1, aspect_ratio: "1:1", output_format: "png", output_quality: 90 },
+      input: { 
+        prompt: transparent ? `${prompt}, transparent background, no background, isolated sticker on white` : prompt, 
+        num_outputs: 1, 
+        aspect_ratio: "1:1", 
+        output_format: "png", 
+        output_quality: 90,
+        disable_safety_checker: true,
+      },
     }),
   });
+  
   if (!response.ok) throw new Error(`Replicate: ${response.status}`);
+  
   const prediction = await response.json();
+  
+  // 轮询状态（最多30秒）
   let result = prediction;
   let attempts = 0;
-  while (result.status !== "succeeded" && result.status !== "failed" && attempts < 30) {
+  while (result.status !== "succeeded" && result.status !== "failed" && attempts < 15) {
     await new Promise((r) => setTimeout(r, 2000));
     const pollRes = await fetch(`https://api.replicate.com/v1/predictions/${result.id}`, {
       headers: { Authorization: `Token ${token}` },
@@ -162,6 +188,7 @@ async function generateWithReplicate(prompt: string): Promise<string> {
     result = await pollRes.json();
     attempts++;
   }
+  
   if (result.status === "succeeded" && result.output?.[0]) return result.output[0];
   throw new Error("Replicate failed");
 }
