@@ -1,12 +1,41 @@
-export const metadata = {
-  title: "Pricing - AI Sticker Generator",
-  description: "Choose your plan for AI Sticker Generator",
-};
+"use client";
+
+import { useState } from "react";
+import { Loader2 } from "lucide-react";
 
 export default function PricingPage() {
-  const monthlyProductId = process.env.CREEM_PRO_MONTHLY_PRODUCT_ID || "prod_7OurPpIwMMeub80vPOxl6F";
-  const yearlyProductId = process.env.CREEM_PRO_YEARLY_PRODUCT_ID || "prod_3cy26xwgYp3NTUwgQEyeVa";
-  
+  const [checkoutLoading, setCheckoutLoading] = useState<"monthly" | "yearly" | null>(null);
+
+  const monthlyProductId = process.env.NEXT_PUBLIC_CREEM_PRO_MONTHLY_PRODUCT_ID || "prod_7OurPpIwMMeub80vPOxl6F";
+  const yearlyProductId = process.env.NEXT_PUBLIC_CREEM_PRO_YEARLY_PRODUCT_ID || "prod_3cy26xwgYp3NTUwgQEyeVa";
+
+  const handleUpgrade = async (priceType: "monthly" | "yearly") => {
+    setCheckoutLoading(priceType);
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ priceType }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error || `Checkout failed: ${res.status}`);
+        return;
+      }
+
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert("No checkout URL received. Please try again.");
+      }
+    } catch {
+      alert("Failed to start checkout. Please try again.");
+    } finally {
+      setCheckoutLoading(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-white">
       {/* Header */}
@@ -58,8 +87,28 @@ export default function PricingPage() {
               <li className="flex items-start gap-2"><span className="text-purple-600 mt-0.5">✓</span>Commercial license</li>
               <li className="flex items-start gap-2"><span className="text-purple-600 mt-0.5">✓</span>Priority support</li>
             </ul>
-            <a href={`/api/creem/checkout?product=${monthlyProductId}`} className="block w-full py-3 rounded-xl text-center font-medium text-white bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 transition-all shadow-md mb-2">Get Pro Monthly</a>
-            <a href={`/api/creem/checkout?product=${yearlyProductId}`} className="block w-full py-2.5 rounded-xl text-center font-medium text-purple-600 bg-purple-50 hover:bg-purple-100 transition-colors text-sm">Get Pro Yearly ($79)</a>
+            <button
+              onClick={() => handleUpgrade("monthly")}
+              disabled={checkoutLoading !== null}
+              className="w-full py-3 rounded-xl font-medium text-white bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 transition-all shadow-md mb-2 disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {checkoutLoading === "monthly" ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</>
+              ) : (
+                "Get Pro Monthly"
+              )}
+            </button>
+            <button
+              onClick={() => handleUpgrade("yearly")}
+              disabled={checkoutLoading !== null}
+              className="w-full py-2.5 rounded-xl font-medium text-purple-600 bg-purple-50 hover:bg-purple-100 transition-colors text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {checkoutLoading === "yearly" ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</>
+              ) : (
+                "Get Pro Yearly ($79)"
+              )}
+            </button>
           </div>
         </div>
 

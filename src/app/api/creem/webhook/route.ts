@@ -20,23 +20,31 @@ export async function POST(req: NextRequest) {
         const { customer_email, metadata } = object;
         if (!customer_email) break;
 
-        const { data: user } = await supabaseAdmin
+        if (!supabaseAdmin) {
+          console.error("Supabase admin not initialized");
+          break;
+        }
+
+        const { data: user, error } = await supabaseAdmin
           .from("users")
           .select("id")
           .eq("email", customer_email)
           .single();
 
-        if (user) {
-          await supabaseAdmin
-            .from("users")
-            .update({
-              plan: "pro",
-              subscription_status: "active",
-              subscription_id: object.id,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", user.id);
+        if (error || !user) {
+          console.error("User not found:", customer_email, error);
+          break;
         }
+
+        await supabaseAdmin
+          .from("users")
+          .update({
+            plan: "pro",
+            subscription_status: "active",
+            subscription_id: object.id,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", user.id);
         break;
       }
 
@@ -45,22 +53,30 @@ export async function POST(req: NextRequest) {
         const { customer_email } = object;
         if (!customer_email) break;
 
-        const { data: user } = await supabaseAdmin
+        if (!supabaseAdmin) {
+          console.error("Supabase admin not initialized");
+          break;
+        }
+
+        const { data: user, error } = await supabaseAdmin
           .from("users")
           .select("id")
           .eq("email", customer_email)
           .single();
 
-        if (user) {
-          await supabaseAdmin
-            .from("users")
-            .update({
-              plan: "free",
-              subscription_status: "canceled",
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", user.id);
+        if (error || !user) {
+          console.error("User not found:", customer_email, error);
+          break;
         }
+
+        await supabaseAdmin
+          .from("users")
+          .update({
+            plan: "free",
+            subscription_status: "canceled",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", user.id);
         break;
       }
 

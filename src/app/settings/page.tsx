@@ -57,8 +57,16 @@ export default function SettingsPage() {
         body: JSON.stringify({ priceType }),
       });
       const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error || `Checkout failed: ${res.status}`);
+        return;
+      }
+
       if (data.url) {
         window.location.href = data.url;
+      } else {
+        alert("No checkout URL received. Please try again.");
       }
     } catch {
       alert("Failed to start checkout. Please try again.");
