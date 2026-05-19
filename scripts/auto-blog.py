@@ -11,8 +11,8 @@ from datetime import datetime
 import subprocess
 
 # 配置
-BLOG_DIR = "/Users/myan/WorkBuddy/2026-05-17-task-1/ai-sticker-generator/src/app/blog"
-GIT_DIR = "/Users/myan/WorkBuddy/2026-05-17-task-1/ai-sticker-generator"
+BLOG_DIR = "/Users/myan/WorkBuddy/2026-05-17-task-1/src/app/blog"
+GIT_DIR = "/Users/myan/WorkBuddy/2026-05-17-task-1"
 
 # 长尾关键词模板（KGR 0.3-0.5）
 KEYWORD_TEMPLATES = [
@@ -158,7 +158,7 @@ def git_commit_and_push():
     subprocess.run([
         "/usr/bin/git", "push", 
         f"https://{github_token}@github.com/diyizixun/ai-sticker-generator.git",
-        "clean-main:main", "--force"
+        "main:main"
     ], check=True)
     
     print(f"Successfully pushed to GitHub: {commit_msg}")

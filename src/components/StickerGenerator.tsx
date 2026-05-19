@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { ImageIcon, Sparkles, ChevronDown, Wand2 } from "lucide-react";
-import { STYLES, PRICING } from "@/lib/config";
+import { STYLES } from "@/lib/config";
 import { clsx } from "clsx";
 
 type Mode = "text" | "image";
 
-const BLOCKED_WORDS = ["nude", "nsfw", "porn", "violent", "gore", "hate"];
+const BLACKED_WORDS = ["nude", "nsfw", "porn", "violent", "gore", "hate"];
 
 interface StickerGeneratorProps {
   initialPrompt?: string;
@@ -25,10 +25,9 @@ export default function StickerGenerator({ initialPrompt }: StickerGeneratorProp
 
   const isBlocked = () => {
     const lower = prompt.toLowerCase();
-    return BLOCKED_WORDS.some((w) => lower.includes(w));
+    return BLACKED_WORDS.some((w) => lower.includes(w));
   };
 
-  // 生成链接 - 纯URL跳转，不依赖任何JS API调用
   const generateUrl = `/result?p=${encodeURIComponent(prompt.trim())}&s=${selectedStyle}`;
   const canGenerate = prompt.trim().length > 0 && prompt.length <= 500 && !isBlocked();
 
@@ -148,7 +147,7 @@ export default function StickerGenerator({ initialPrompt }: StickerGeneratorProp
             </div>
           </div>
 
-          {/* Generate - 用<a>标签代替<button>，纯链接跳转，零JS依赖 */}
+          {/* Generate */}
           {canGenerate ? (
             <a
               href={generateUrl}
@@ -170,9 +169,7 @@ export default function StickerGenerator({ initialPrompt }: StickerGeneratorProp
 
       <div className="mt-4 text-center text-xs text-gray-400">
         Free unlimited generation •{" "}
-        <a href="/#pricing" className="text-purple-600 hover:underline">
-          Upgrade to Pro
-        </a>{" "}
+        <a href="/pricing" className="text-purple-600 hover:underline">Upgrade to Pro</a>{" "}
         for transparent PNG &amp; HD quality
       </div>
     </div>

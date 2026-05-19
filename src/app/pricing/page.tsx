@@ -1,11 +1,12 @@
-import { CREEM_PRODUCTS } from "@/lib/creem/server";
-
 export const metadata = {
   title: "Pricing - AI Sticker Generator",
   description: "Choose your plan for AI Sticker Generator",
 };
 
 export default function PricingPage() {
+  const monthlyProductId = process.env.CREEM_PRO_MONTHLY_PRODUCT_ID || "prod_7OurPpIwMMeub80vPOxl6F";
+  const yearlyProductId = process.env.CREEM_PRO_YEARLY_PRODUCT_ID || "prod_3cy26xwgYp3NTUwgQEyeVa";
+  
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-white">
       {/* Header */}
@@ -33,76 +34,32 @@ export default function PricingPage() {
               <div className="text-4xl font-bold text-gray-900 mb-1">$0</div>
               <p className="text-sm text-gray-500">Forever</p>
             </div>
-            <ul className="space-y-3 mb-8">
-              <li className="flex items-start gap-2 text-sm text-gray-600">
-                <span className="text-green-500 mt-0.5">✓</span>
-                Generate unlimited stickers
-              </li>
-              <li className="flex items-start gap-2 text-sm text-gray-600">
-                <span className="text-green-500 mt-0.5">✓</span>
-                Standard quality (512px)
-              </li>
-              <li className="flex items-start gap-2 text-sm text-gray-600">
-                <span className="text-green-500 mt-0.5">✓</span>
-                Ad-supported
-              </li>
-              <li className="flex items-start gap-2 text-sm text-gray-600">
-                <span className="text-green-500 mt-0.5">✓</span>
-                Personal use
-              </li>
+            <ul className="space-y-3 mb-8 text-sm text-gray-600">
+              <li className="flex items-start gap-2"><span className="text-green-500 mt-0.5">✓</span>Unlimited sticker generation</li>
+              <li className="flex items-start gap-2"><span className="text-green-500 mt-0.5">✓</span>Standard quality (512px)</li>
+              <li className="flex items-start gap-2"><span className="text-green-500 mt-0.5">✓</span>Ad-supported</li>
+              <li className="flex items-start gap-2"><span className="text-green-500 mt-0.5">✓</span>Personal use</li>
             </ul>
-            <a
-              href="/"
-              className="block w-full py-3 rounded-xl text-center font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors"
-            >
-              Start Free
-            </a>
+            <a href="/" className="block w-full py-3 rounded-xl text-center font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">Start Free</a>
           </div>
 
           {/* Pro Plan */}
           <div className="bg-white rounded-2xl border-2 border-purple-600 p-8 relative">
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-purple-600 text-white text-xs font-bold px-3 py-1 rounded-full">
-              POPULAR
-            </div>
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-purple-600 text-white text-xs font-bold px-3 py-1 rounded-full">POPULAR</div>
             <div className="text-center mb-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Pro</h3>
               <div className="text-4xl font-bold text-gray-900 mb-1">$9.9<span className="text-lg text-gray-500">/mo</span></div>
               <p className="text-sm text-gray-500">or $79/year (save 33%)</p>
             </div>
-            <ul className="space-y-3 mb-8">
-              <li className="flex items-start gap-2 text-sm text-gray-600">
-                <span className="text-purple-600 mt-0.5">✓</span>
-                <strong>Transparent PNG</strong> (print-ready)
-              </li>
-              <li className="flex items-start gap-2 text-sm text-gray-600">
-                <span className="text-purple-600 mt-0.5">✓</span>
-                HD Quality (1024×1024)
-              </li>
-              <li className="flex items-start gap-2 text-sm text-gray-600">
-                <span className="text-purple-600 mt-0.5">✓</span>
-                No Ads
-              </li>
-              <li className="flex items-start gap-2 text-sm text-gray-600">
-                <span className="text-purple-600 mt-0.5">✓</span>
-                Commercial license
-              </li>
-              <li className="flex items-start gap-2 text-sm text-gray-600">
-                <span className="text-purple-600 mt-0.5">✓</span>
-                Priority support
-              </li>
+            <ul className="space-y-3 mb-8 text-sm text-gray-600">
+              <li className="flex items-start gap-2"><span className="text-purple-600 mt-0.5">✓</span><strong>Transparent PNG</strong> (print-ready)</li>
+              <li className="flex items-start gap-2"><span className="text-purple-600 mt-0.5">✓</span>HD Quality (1024×1024)</li>
+              <li className="flex items-start gap-2"><span className="text-purple-600 mt-0.5">✓</span>No Ads</li>
+              <li className="flex items-start gap-2"><span className="text-purple-600 mt-0.5">✓</span>Commercial license</li>
+              <li className="flex items-start gap-2"><span className="text-purple-600 mt-0.5">✓</span>Priority support</li>
             </ul>
-            <a
-              href={`/api/creem/checkout?product=${CREEM_PRODUCTS.proMonthly}`}
-              className="block w-full py-3 rounded-xl text-center font-medium text-white bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 transition-all shadow-md mb-2"
-            >
-              Get Pro Monthly
-            </a>
-            <a
-              href={`/api/creem/checkout?product=${CREEM_PRODUCTS.proYearly}`}
-              className="block w-full py-2.5 rounded-xl text-center font-medium text-purple-600 bg-purple-50 hover:bg-purple-100 transition-colors text-sm"
-            >
-              Get Pro Yearly ($79)
-            </a>
+            <a href={`/api/creem/checkout?product=${monthlyProductId}`} className="block w-full py-3 rounded-xl text-center font-medium text-white bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 transition-all shadow-md mb-2">Get Pro Monthly</a>
+            <a href={`/api/creem/checkout?product=${yearlyProductId}`} className="block w-full py-2.5 rounded-xl text-center font-medium text-purple-600 bg-purple-50 hover:bg-purple-100 transition-colors text-sm">Get Pro Yearly ($79)</a>
           </div>
         </div>
 
@@ -128,9 +85,7 @@ export default function PricingPage() {
 
       {/* Footer */}
       <footer className="bg-gray-900 text-gray-400 py-8 mt-16">
-        <div className="max-w-4xl mx-auto px-4 text-center text-xs">
-          © {new Date().getFullYear()} AI Sticker Generator. All rights reserved.
-        </div>
+        <div className="max-w-4xl mx-auto px-4 text-center text-xs">© {new Date().getFullYear()} AI Sticker Generator. All rights reserved.</div>
       </footer>
     </div>
   );
