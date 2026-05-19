@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 4. 调用 Creem API 创建 checkout session
-    // Creem 使用 x-api-key 认证头，不是 Authorization Bearer
+    // Creem 只接受 product_id 和 success_url，不支持 customer_email、cancel_url、metadata
     const creemRes = await fetch(`${CREEM_BASE_URL}/v1/checkouts`, {
       method: "POST",
       headers: {
@@ -55,12 +55,7 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         product_id: productId,
-        customer_email: user.email,
         success_url: `${BASE_URL}/settings?checkout=success`,
-        cancel_url: `${BASE_URL}/settings?checkout=cancelled`,
-        metadata: {
-          user_id: (user as any).id || "",
-        },
       }),
     });
 
