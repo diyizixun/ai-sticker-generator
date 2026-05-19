@@ -8,6 +8,7 @@ const CheckoutSchema = z.object({
 });
 
 const CREEM_API_KEY = process.env.CREEM_API_KEY!;
+const CREEM_BASE_URL = process.env.CREEM_API_BASE_URL || "https://api.creem.io";
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://aisticker.pics";
 
 export async function POST(req: NextRequest) {
@@ -29,17 +30,27 @@ export async function POST(req: NextRequest) {
         : process.env.CREEM_PRO_MONTHLY_PRODUCT_ID;
 
     if (!productId) {
+      console.error("Missing product ID for priceType:", priceType);
       return NextResponse.json(
-        { error: "Product not configured" },
+        { error: "Product not configured. Please check CREEM_PRO_MONTHLY_PRODUCT_ID and CREEM_PRO_YEARLY_PRODUCT_ID environment variables." },
+        { status: 500 }
+      );
+    }
+
+    if (!CREEM_API_KEY) {
+      console.error("Missing CREEM_API_KEY");
+      return NextResponse.json(
+        { error: "Payment system not configured" },
         { status: 500 }
       );
     }
 
     // 4. 调用 Creem API 创建 checkout session
-    const creemRes = await fetch("https://api.creem.io/v1/checkout", {
+    // Creem 使用 x-api-key 认证头，不是 Authorization Bearer
+    const creemRes = await fetch(`${CREEM_BASE_URL}/v1/checkouts`, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${CREEM_API_KEY}`,
+        "x-api-key": CREEM_API_KEY,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -54,16 +65,29 @@ export async function POST(req: NextRequest) {
     });
 
     if (!creemRes.ok) {
-      const error = await creemRes.text();
-      console.error("Creem checkout error:", error);
+      const errorText = await creemRes.text();
+      console.error("Creem checkout error:", creemRes.status, errorText);
       return NextResponse.json(
-        { error: "Failed to create checkout" },
+        { error: `Creem API error: ${creemRes.status} ${errorText.slice(0, 300)}` },
         { status: 500 }
       );
     }
 
     const data = await creemRes.json();
-    return NextResponse.json({ url: data.checkout_url || data.url });
+    console.log("Creem checkout response:", JSON.stringify(data));
+
+    // Creem 返回的 checkout_url 字段
+    const checkoutUrl = data.checkout_url || data.url || data.checkout?.checkout_url;
+    
+    if (!checkoutUrl) {
+      console.error("No checkout URL in Creem response:", data);
+      return NextResponse.json(
+        { error: "No checkout URL returned from payment provider" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ url: checkoutUrl });
   } catch (error) {
     console.error("Checkout error:", error);
     if (error instanceof z.ZodError) {
