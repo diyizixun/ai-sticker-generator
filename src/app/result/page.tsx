@@ -229,6 +229,14 @@ export default async function ResultPage({
               alt={`Sticker: ${userPrompt}`}
               className="max-w-[512px] max-h-[512px] object-contain rounded-lg"
               style={{ imageRendering: "auto" }}
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.style.display = "none";
+                const parent = target.parentElement;
+                if (parent) {
+                  parent.innerHTML = `<div class="text-center text-gray-400"><p class="text-4xl mb-2">⚠️</p><p class="text-sm">Image failed to load. Please check your network and <a href="/result?p=${encodeURIComponent(userPrompt)}&s=${styleId}&r=${Date.now()}" class="text-purple-600 underline">retry</a>.</p></div>`;
+                }
+              }}
             />
           </div>
         </div>

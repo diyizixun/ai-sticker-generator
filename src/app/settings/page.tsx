@@ -159,6 +159,12 @@ export default function SettingsPage() {
               <p className="text-xs text-gray-500">Remaining Today</p>
             </div>
           </div>
+          <a
+            href="/#generator"
+            className="mt-4 block w-full py-3 rounded-xl text-center font-medium text-white bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 transition-all"
+          >
+            ✨ Generate New Sticker
+          </a>
         </div>
 
         {/* Subscription */}
