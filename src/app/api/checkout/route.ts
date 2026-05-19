@@ -1,13 +1,14 @@
-// /api/checkout - 创建Creem支付链接
-
+// /api/checkout - 创建Creem支付链接（POST）
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
-import { getCheckoutUrl, CREEM_PRODUCTS } from "@/lib/creem/server";
 import { z } from "zod";
 
 const CheckoutSchema = z.object({
   priceType: z.enum(["monthly", "yearly"]),
 });
+
+const CREEM_API_KEY = process.env.CREEM_API_KEY!;
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://aisticker.pics";
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,30 +22,55 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { priceType } = CheckoutSchema.parse(body);
 
-    // 3. 选择产品
+    // 3. 选择正确的产品ID
     const productId =
-      priceType === "monthly"
-        ? CREEM_PRODUCTS.proMonthly
-        : CREEM_PRODUCTS.proYearly;
+      priceType === "yearly"
+        ? process.env.CREEM_PRO_YEARLY_PRODUCT_ID
+        : process.env.CREEM_PRO_MONTHLY_PRODUCT_ID;
 
     if (!productId) {
       return NextResponse.json(
-        { error: "Payment not configured yet. Please try again later." },
-        { status: 503 }
+        { error: "Product not configured" },
+        { status: 500 }
       );
     }
 
-    // 4. 生成Checkout URL
-    const checkoutUrl = getCheckoutUrl(productId, user.id);
+    // 4. 调用 Creem API 创建 checkout session
+    const creemRes = await fetch("https://api.creem.io/v1/checkout", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${CREEM_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        product_id: productId,
+        customer_email: user.email,
+        success_url: `${BASE_URL}/settings?checkout=success`,
+        cancel_url: `${BASE_URL}/settings?checkout=cancelled`,
+        metadata: {
+          user_id: (user as any).id || "",
+        },
+      }),
+    });
 
-    return NextResponse.json({ url: checkoutUrl });
+    if (!creemRes.ok) {
+      const error = await creemRes.text();
+      console.error("Creem checkout error:", error);
+      return NextResponse.json(
+        { error: "Failed to create checkout" },
+        { status: 500 }
+      );
+    }
+
+    const data = await creemRes.json();
+    return NextResponse.json({ url: data.checkout_url || data.url });
   } catch (error) {
     console.error("Checkout error:", error);
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "Invalid parameters" }, { status: 400 });
     }
     return NextResponse.json(
-      { error: "Failed to create checkout session" },
+      { error: "Internal error" },
       { status: 500 }
     );
   }
