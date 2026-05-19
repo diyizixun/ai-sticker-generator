@@ -59,7 +59,10 @@ export default function HomePage() {
             <a href="/blog" className="hover:text-purple-600 transition-colors">Blog</a>
             <a href="/pricing" className="hover:text-purple-600 transition-colors">Pricing</a>
           </nav>
-          <a href="#generator" className="bg-purple-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors">Get Started</a>
+          <div className="flex items-center gap-3">
+            <a href="/login" className="text-sm font-medium text-gray-600 hover:text-purple-700 transition-colors">Sign In</a>
+            <a href="#generator" className="bg-purple-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors">Get Started</a>
+          </div>
         </div>
       </header>
 

@@ -120,7 +120,14 @@ export default function SettingsPage() {
         <div className="max-w-2xl mx-auto space-y-6">
           {/* Header */}
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+            <div className="flex items-center gap-4">
+              <a href="/" className="flex items-center gap-2 text-gray-400 hover:text-purple-600 transition-colors" title="Back to Home">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+              </a>
+              <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+            </div>
             <button
               onClick={handleSignOut}
               className="flex items-center gap-2 text-sm text-gray-500 hover:text-red-600 transition-colors"
@@ -156,8 +163,34 @@ export default function SettingsPage() {
           {/* Quota */}
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <Download className="w-5 h-5 text-purple-600" /> Usage
+              <Download className="w-5 h-5 text-purple-600" /> Usage & Quota
             </h2>
+
+            {/* 今日额度进度 */}
+            {!isPro && (
+              <div className="mb-4">
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-gray-600">Today's quota</span>
+                  <span className="text-gray-900 font-medium">
+                    {data.quota.allowed ? `${5 - data.quota.remaining}/5` : "0/5"}
+                  </span>
+                </div>
+                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-purple-500 to-violet-500 rounded-full transition-all"
+                    style={{ width: `${data.quota.allowed ? ((5 - data.quota.remaining) / 5) * 100 : 0}%` }}
+                  />
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  Resets at 00:00 UTC ({
+                    data.quota.remaining > 0
+                      ? `${data.quota.remaining} remaining today`
+                      : "Quota used up, comes back at midnight UTC"
+                  })
+                </p>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-gray-50 rounded-lg p-4 text-center">
                 <p className="text-2xl font-bold text-gray-900">{data.user.totalGenerations}</p>
@@ -170,6 +203,16 @@ export default function SettingsPage() {
                 <p className="text-xs text-gray-500">Remaining Today</p>
               </div>
             </div>
+
+            {/* Pro 提示 */}
+            {!isPro && data.quota.remaining === 0 && (
+              <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-sm text-amber-700">
+                  🚧 Daily quota used up! <a href="#subscription" className="font-medium underline">Upgrade to Pro</a> for unlimited generations.
+                </p>
+              </div>
+            )}
+
             <a
               href="/#generator"
               className="mt-4 block w-full py-3 rounded-xl text-center font-medium text-white bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 transition-all"
@@ -179,7 +222,7 @@ export default function SettingsPage() {
           </div>
 
           {/* Subscription */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <div id="subscription" className="bg-white rounded-xl border border-gray-200 p-6">
             <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <CreditCard className="w-5 h-5 text-purple-600" /> Subscription
             </h2>
