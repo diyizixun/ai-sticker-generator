@@ -69,7 +69,7 @@ function ReplicatePollingScript({ predictionId }: { predictionId: string }) {
   );
 }
 
-// Pro 下载脚本 — 客户端背景去除 + 下载
+// Pro 下载脚本 — 直接下载 Pollinations 图片（背景去除后续通过服务端 API 实现）
 function ProDownloadScript({ prompt }: { prompt: string }) {
   const safePrompt = prompt.slice(0, 30).replace(/[^a-zA-Z0-9]/g, "-");
   return (
@@ -81,52 +81,32 @@ function ProDownloadScript({ prompt }: { prompt: string }) {
   var container = document.getElementById('pro-download-area');
   if (!btn) return;
 
-  btn.addEventListener('click', async function() {
+  btn.addEventListener('click', function() {
     btn.disabled = true;
-    btn.innerHTML = '<svg class="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" opacity="0.25"></circle><path d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-width="4" stroke-linecap="round"></path></svg> Removing background...';
+    btn.innerHTML = '<svg class="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" opacity="0.25"></circle><path d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-width="4" stroke-linecap="round"></path></svg> Preparing download...';
 
     try {
-      // 获取当前图片URL
       var imgEl = document.getElementById('sticker-image');
       var imgUrl = imgEl ? imgEl.src : '';
       if (!imgUrl) throw new Error('No image found');
 
-      // 下载图片
-      var imgRes = await fetch(imgUrl);
-      var blob = await imgRes.blob();
+      // 直接下载原图（Pro 功能：透明背景将通过服务端 API 实现）
+      var link = document.createElement('a');
+      link.href = imgUrl;
+      link.download = 'sticker-${safePrompt}.png';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
 
-      // 背景去除
-      var mod = await import('/node_modules/@imgly/background-removal/dist/index.js');
-      var resultBlob = await mod.removeBackground(blob, {
-        model: 'isnet_fp16',
-        output: { format: 'image/png', quality: 0.9 }
-      });
-
-      // 创建下载
-      var url = URL.createObjectURL(resultBlob);
-
-      // 显示预览
-      if (container) {
-        container.innerHTML =
-          '<div class="bg-white rounded-xl border border-gray-200 overflow-hidden p-4 mb-3">' +
-            '<div class="flex items-center justify-center min-h-[200px] rounded-lg" style="background-image:linear-gradient(45deg,#f0f0f0 25%,transparent 25%),linear-gradient(-45deg,#f0f0f0 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#f0f0f0 75%),linear-gradient(-45deg,transparent 75%,#f0f0f0 75%);background-size:20px 20px;background-position:0 0,0 10px,10px -10px,-10px 0">' +
-              '<img src="' + url + '" alt="Transparent sticker" class="max-w-[300px] max-h-[300px] object-contain" />' +
-            '</div>' +
-          '</div>' +
-          '<a href="' + url + '" download="sticker-${safePrompt}.png" class="w-full py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 flex items-center justify-center gap-2 transition-all shadow-md no-underline">' +
-            '✅ Download Transparent PNG' +
-          '</a>';
-      }
+      btn.innerHTML = '✅ Downloaded!';
+      setTimeout(function() {
+        btn.disabled = false;
+        btn.innerHTML = '🪄 Download Sticker';
+      }, 2000);
     } catch(e) {
-      console.error('Background removal failed:', e);
-      if (container) {
-        container.innerHTML =
-          '<p class="text-sm text-red-500 text-center mb-2">Failed: ' + (e.message || 'Unknown error') + '</p>' +
-          '<button id="pro-download-btn" class="w-full py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 flex items-center justify-center gap-2">🔄 Try Again</button>';
-        // Re-attach listener
-        var newBtn = document.getElementById('pro-download-btn');
-        if (newBtn) newBtn.addEventListener('click', arguments.callee);
-      }
+      console.error('Download failed:', e);
+      btn.disabled = false;
+      btn.innerHTML = '🪄 Try Again';
     }
   });
 })();`,
