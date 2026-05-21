@@ -135,6 +135,7 @@ export default function TermsOfService() {
         <p>For questions about these Terms, please contact us at:</p>
         <ul>
           <li>Email: 332847952@qq.com</li>
+          <li>Support: support@aisticker.pics</li>
           <li>Website: <a href="https://aisticker.pics">aisticker.pics</a></li>
         </ul>
       </main>

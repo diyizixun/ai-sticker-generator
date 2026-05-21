@@ -192,7 +192,7 @@ export default function HomePage() {
             <div className="flex items-center gap-6 text-sm">
               <a href="/privacy" className="hover:text-white transition-colors">Privacy Policy</a>
               <a href="/terms" className="hover:text-white transition-colors">Terms of Service</a>
-              <a href="mailto:332847952@qq.com" className="hover:text-white transition-colors">Contact</a>
+              <a href="mailto:support@aisticker.pics" className="hover:text-white transition-colors">Contact</a>
             </div>
           </div>
           <div className="mt-8 pt-8 border-t border-gray-800 text-center text-xs">© {new Date().getFullYear()} AI Sticker Generator. All rights reserved.</div>

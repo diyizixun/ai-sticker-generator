@@ -86,7 +86,7 @@ export default function PrivacyPolicy() {
           <li>Export your data in a portable format</li>
           <li>Withdraw consent for data processing where applicable</li>
         </ul>
-        <p>To exercise any of these rights, contact us at 332847952@qq.com.</p>
+        <p>To exercise any of these rights, contact us at 332847952@qq.com or support@aisticker.pics.</p>
 
         <h2>7. Data Security</h2>
         <p>We implement appropriate technical and organizational measures to protect your personal data, including:</p>
@@ -110,6 +110,7 @@ export default function PrivacyPolicy() {
         <p>If you have questions about this Privacy Policy or our data practices, please contact us at:</p>
         <ul>
           <li>Email: 332847952@qq.com</li>
+          <li>Support: support@aisticker.pics</li>
           <li>Website: <a href="https://aisticker.pics">aisticker.pics</a></li>
         </ul>
       </main>

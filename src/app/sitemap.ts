@@ -1,8 +1,26 @@
 import type { MetadataRoute } from "next";
 import { getAllSlugs } from "@/lib/sticker-pages";
+import fs from "fs";
+import path from "path";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = "https://aisticker.pics"; // 域名注册后替换
+  const baseUrl = "https://aisticker.pics";
+
+  // 动态读取所有 blog 页面
+  const blogDir = path.join(process.cwd(), "src/app/blog");
+  const blogSlugs: string[] = [];
+  
+  if (fs.existsSync(blogDir)) {
+    const entries = fs.readdirSync(blogDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const pagePath = path.join(blogDir, entry.name, "page.tsx");
+        if (fs.existsSync(pagePath)) {
+          blogSlugs.push(`blog/${entry.name}`);
+        }
+      }
+    }
+  }
 
   const staticPages: MetadataRoute.Sitemap = [
     {
@@ -23,12 +41,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "weekly",
       priority: 0.8,
     },
-    {
-      url: `${baseUrl}/blog/how-to-write-sticker-prompts`,
+    ...blogSlugs.map((slug) => ({
+      url: `${baseUrl}/${slug}`,
       lastModified: new Date(),
-      changeFrequency: "monthly",
+      changeFrequency: "monthly" as const,
       priority: 0.7,
-    },
+    })),
     {
       url: `${baseUrl}/privacy`,
       lastModified: new Date(),
