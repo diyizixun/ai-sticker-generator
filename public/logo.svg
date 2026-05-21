@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- 渐变背景 -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8B5CF6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#EC4899;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="stickerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#A78BFA;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#F472B6;stop-opacity:1" />
+    </linearGradient>
+    <!-- 阴影效果 -->
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#000000" flood-opacity="0.2"/>
+    </filter>
+  </defs>
+  
+  <!-- 背景圆角矩形（贴纸形状） -->
+  <rect x="112" y="112" width="800" height="800" rx="200" ry="200" fill="url(#bgGradient)" filter="url(#shadow)"/>
+  
+  <!-- 白色边框（贴纸效果） -->
+  <rect x="112" y="112" width="800" height="800" rx="200" ry="200" fill="none" stroke="white" stroke-width="24"/>
+  
+  <!-- 星星装饰 -->
+  <circle cx="300" cy="280" r="20" fill="white" opacity="0.8"/>
+  <circle cx="720" cy="320" r="16" fill="white" opacity="0.6"/>
+  <circle cx="760" cy="260" r="12" fill="white" opacity="0.7"/>
+  
+  <!-- AI 文字 -->
+  <text x="512" y="500" font-family="Arial Black, sans-serif" font-size="280" font-weight="900" fill="white" text-anchor="middle" dominant-baseline="middle">AI</text>
+  
+  <!-- Sticker 文字 -->
+  <text x="512" y="640" font-family="Arial, sans-serif" font-size="120" font-weight="600" fill="white" text-anchor="middle" dominant-baseline="middle" letter-spacing="8">Sticker</text>
+  
+  <!-- 微笑线条 -->
+  <path d="M 380 720 Q 512 800 640 720" stroke="white" stroke-width="12" fill="none" stroke-linecap="round"/>
+</svg>

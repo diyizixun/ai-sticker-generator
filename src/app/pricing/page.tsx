@@ -42,7 +42,7 @@ export default function PricingPage() {
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
           <a href="/" className="flex items-center gap-2">
-            <span className="text-2xl">🎨</span>
+            <img src="/logo.svg" alt="AI Sticker Generator" className="w-8 h-8" />
             <span className="font-bold text-lg text-gray-900">AI Sticker Generator</span>
           </a>
           <a href="/" className="text-sm text-purple-600 hover:underline">← Back</a>

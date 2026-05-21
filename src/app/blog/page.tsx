@@ -20,9 +20,17 @@ export default function BlogPage() {
   return (
     <div className="min-h-screen bg-white">
       <header className="bg-gray-50 border-b border-gray-100">
-        <div className="max-w-4xl mx-auto px-4 py-8">
-          <a href="/" className="text-purple-600 hover:underline text-sm">← Home</a>
-          <h1 className="text-3xl font-bold text-gray-900 mt-4">Blog</h1>
+        <div className="max-w-4xl mx-auto px-4 py-6 flex items-center gap-3">
+          <a href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+            <img src="/logo.svg" alt="AI Sticker Generator" className="w-8 h-8" />
+            <span className="font-bold text-lg text-gray-900">AI Sticker Generator</span>
+          </a>
+          <div className="ml-auto">
+            <a href="/" className="text-purple-600 hover:underline text-sm">← Home</a>
+          </div>
+        </div>
+        <div className="max-w-4xl mx-auto px-4 pb-4">
+          <h1 className="text-3xl font-bold text-gray-900">Blog</h1>
           <p className="text-gray-600 mt-2">Tips, tutorials, and ideas for creating and selling AI stickers.</p>
         </div>
       </header>

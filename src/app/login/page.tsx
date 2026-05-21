@@ -27,7 +27,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-purple-50 to-white px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <span className="text-4xl">🎨</span>
+          <img src="/logo.svg" alt="AI Sticker Generator" className="w-16 h-16 mx-auto" />
           <h1 className="text-2xl font-bold text-gray-900 mt-4">
             AI Sticker Generator
           </h1>
