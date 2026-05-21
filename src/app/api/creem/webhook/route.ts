@@ -1,15 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-
-const CREEM_WEBHOOK_SECRET = process.env.CREEM_WEBHOOK_SECRET || "";
+import { verifyCreemWebhookSignature } from "@/lib/creem/server";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const signature = req.headers.get("creem-signature") || "";
 
-    if (CREEM_WEBHOOK_SECRET && signature) {
-      // TODO: verify signature
+    // 验证 webhook 签名
+    if (process.env.CREEM_WEBHOOK_SECRET && signature) {
+      const payload = JSON.stringify(body);
+      const isValid = verifyCreemWebhookSignature(payload, signature);
+      if (!isValid) {
+        console.error("Invalid Creem webhook signature");
+        return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+      }
+    } else {
+      console.warn("CREEM_WEBHOOK_SECRET not set, skipping signature verification");
     }
 
     const { event_type, object } = body;

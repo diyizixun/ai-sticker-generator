@@ -1,5 +1,6 @@
 import { STYLES } from "@/lib/config";
 import StickerImage from "@/components/StickerImage";
+import ProDownloadButton from "@/components/ProDownload";
 
 // 广告位
 function AdBanner({ slot, format = "auto", style }: { slot: string; format?: string; style?: React.CSSProperties }) {
@@ -15,95 +16,6 @@ function AdBanner({ slot, format = "auto", style }: { slot: string; format?: str
         data-full-width-responsive="true"
       />
     </div>
-  );
-}
-
-// Replicate 轮询脚本
-function ReplicatePollingScript({ predictionId }: { predictionId: string }) {
-  return (
-    <script
-      dangerouslySetInnerHTML={{
-        __html: `
-(function() {
-  var pid = "${predictionId}";
-  var pollInterval = 2000;
-  var maxAttempts = 30;
-  var attempts = 0;
-  var imgEl = document.getElementById('sticker-image');
-  var statusEl = document.getElementById('gen-status');
-  function poll() {
-    if (attempts >= maxAttempts) {
-      if (statusEl) statusEl.textContent = 'Free preview ready';
-      return;
-    }
-    attempts++;
-    fetch('/api/replicate/status?id=' + pid)
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        if (data.status === 'succeeded' && data.output) {
-          if (imgEl) imgEl.src = data.output;
-          if (statusEl) statusEl.style.display = 'none';
-        } else if (data.status === 'failed') {
-          if (statusEl) statusEl.textContent = 'Free preview ready';
-        } else {
-          if (statusEl) statusEl.textContent = '✨ Generating HD sticker... (' + attempts + ')';
-          setTimeout(poll, pollInterval);
-        }
-      })
-      .catch(function() {
-        if (statusEl) statusEl.textContent = 'Free preview ready';
-      });
-  }
-  poll();
-})();`,
-      }}
-    />
-  );
-}
-
-// Pro 下载脚本 — 直接下载 Pollinations 图片（背景去除后续通过服务端 API 实现）
-function ProDownloadScript({ prompt }: { prompt: string }) {
-  const safePrompt = prompt.slice(0, 30).replace(/[^a-zA-Z0-9]/g, "-");
-  return (
-    <script
-      dangerouslySetInnerHTML={{
-        __html: `
-(function() {
-  var btn = document.getElementById('pro-download-btn');
-  var container = document.getElementById('pro-download-area');
-  if (!btn) return;
-
-  btn.addEventListener('click', function() {
-    btn.disabled = true;
-    btn.innerHTML = '<svg class="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" opacity="0.25"></circle><path d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-width="4" stroke-linecap="round"></path></svg> Preparing download...';
-
-    try {
-      var imgEl = document.getElementById('sticker-image');
-      var imgUrl = imgEl ? imgEl.src : '';
-      if (!imgUrl) throw new Error('No image found');
-
-      // 直接下载原图（Pro 功能：透明背景将通过服务端 API 实现）
-      var link = document.createElement('a');
-      link.href = imgUrl;
-      link.download = 'sticker-${safePrompt}.png';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      btn.innerHTML = '✅ Downloaded!';
-      setTimeout(function() {
-        btn.disabled = false;
-        btn.innerHTML = '🪄 Download Sticker';
-      }, 2000);
-    } catch(e) {
-      console.error('Download failed:', e);
-      btn.disabled = false;
-      btn.innerHTML = '🪄 Try Again';
-    }
-  });
-})();`,
-      }}
-    />
   );
 }
 
@@ -235,14 +147,7 @@ export default async function ResultPage({
                 <p className="text-xs text-gray-500">Die-cut · Print-ready · Upload to Redbubble, WhatsApp, Discord</p>
               </div>
             </div>
-            <div id="pro-download-area">
-              <button
-                id="pro-download-btn"
-                className="w-full py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 flex items-center justify-center gap-2 transition-all shadow-md"
-              >
-                🪄 Remove Background & Download
-              </button>
-            </div>
+            <ProDownloadButton imageUrl={pollinationsUrl} prompt={userPrompt} />
           </div>
         </div>
 
@@ -305,13 +210,6 @@ export default async function ResultPage({
           © {new Date().getFullYear()} AI Sticker Generator. All rights reserved.
         </div>
       </footer>
-
-      {/* 生成脚本 */}
-      {genMode === "replicate" && replicatePredictionId && (
-        <ReplicatePollingScript predictionId={replicatePredictionId} />
-      )}
-      {/* 背景去除脚本 */}
-      <ProDownloadScript prompt={userPrompt} />
     </div>
   );
 }

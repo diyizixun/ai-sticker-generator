@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { ImageIcon, Sparkles, ChevronDown, Wand2 } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { ImageIcon, Sparkles, ChevronDown, Wand2, Loader2 } from "lucide-react";
 import { STYLES } from "@/lib/config";
 import { clsx } from "clsx";
 
 type Mode = "text" | "image";
 
-const BLACKED_WORDS = ["nude", "nsfw", "porn", "violent", "gore", "hate"];
+const BLOCKED_WORDS = ["nude", "nsfw", "porn", "violent", "gore", "hate"];
 
 interface StickerGeneratorProps {
   initialPrompt?: string;
@@ -17,7 +17,11 @@ export default function StickerGenerator({ initialPrompt }: StickerGeneratorProp
   const [mode, setMode] = useState<Mode>("text");
   const [prompt, setPrompt] = useState(initialPrompt || "");
   const [selectedStyle, setSelectedStyle] = useState("cute");
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadPreview, setUploadPreview] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [resultUrl, setResultUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (initialPrompt) setPrompt(initialPrompt);
@@ -25,11 +29,61 @@ export default function StickerGenerator({ initialPrompt }: StickerGeneratorProp
 
   const isBlocked = () => {
     const lower = prompt.toLowerCase();
-    return BLACKED_WORDS.some((w) => lower.includes(w));
+    return BLOCKED_WORDS.some((w) => lower.includes(w));
   };
 
-  const generateUrl = `/result?p=${encodeURIComponent(prompt.trim())}&s=${selectedStyle}`;
-  const canGenerate = prompt.trim().length > 0 && prompt.length <= 500 && !isBlocked();
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) {
+      setUploadedFile(f);
+      const reader = new FileReader();
+      reader.onload = (ev) => setUploadPreview(ev.target?.result as string);
+      reader.readAsDataURL(f);
+    }
+  };
+
+  const handleGenerate = async () => {
+    if (mode === "text") {
+      window.location.href = `/result?p=${encodeURIComponent(prompt.trim())}&s=${selectedStyle}`;
+      return;
+    }
+
+    if (!uploadedFile) return;
+
+    setIsGenerating(true);
+    setResultUrl(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("image", uploadedFile);
+      formData.append("style", selectedStyle);
+      formData.append("prompt", prompt);
+
+      const response = await fetch("/api/image-to-sticker", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.imageUrl) {
+        setResultUrl(data.imageUrl);
+      } else {
+        alert(data.error || "Generation failed. Please try again.");
+      }
+    } catch (e) {
+      console.error("Generation error:", e);
+      alert("Generation failed. Please try again.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const canGenerate =
+    prompt.trim().length > 0 &&
+    prompt.length <= 500 &&
+    !isBlocked() &&
+    (mode === "text" || uploadedFile !== null);
 
   return (
     <div className="w-full max-w-4xl mx-auto">
@@ -38,7 +92,10 @@ export default function StickerGenerator({ initialPrompt }: StickerGeneratorProp
         <div className="flex border-b border-gray-100">
           <button
             type="button"
-            onClick={() => setMode("text")}
+            onClick={() => {
+              setMode("text");
+              setResultUrl(null);
+            }}
             className={clsx(
               "flex-1 py-4 px-6 text-sm font-medium flex items-center justify-center gap-2 transition-colors",
               mode === "text"
@@ -50,7 +107,10 @@ export default function StickerGenerator({ initialPrompt }: StickerGeneratorProp
           </button>
           <button
             type="button"
-            onClick={() => setMode("image")}
+            onClick={() => {
+              setMode("image");
+              setResultUrl(null);
+            }}
             className={clsx(
               "flex-1 py-4 px-6 text-sm font-medium flex items-center justify-center gap-2 transition-colors",
               mode === "image"
@@ -67,7 +127,7 @@ export default function StickerGenerator({ initialPrompt }: StickerGeneratorProp
           {mode === "image" && (
             <div
               className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center cursor-pointer hover:border-purple-300 transition-colors"
-              onClick={() => document.getElementById("file-input")?.click()}
+              onClick={() => fileInputRef.current?.click()}
             >
               {uploadPreview ? (
                 <div className="flex flex-col items-center gap-2">
@@ -77,23 +137,32 @@ export default function StickerGenerator({ initialPrompt }: StickerGeneratorProp
               ) : (
                 <div className="flex flex-col items-center gap-2">
                   <ImageIcon className="w-8 h-8 text-gray-400" />
-                  <p className="text-sm text-gray-500">Click to upload</p>
+                  <p className="text-sm text-gray-500">Click to upload image</p>
                 </div>
               )}
               <input
-                id="file-input"
+                ref={fileInputRef}
                 type="file"
                 accept="image/*"
                 className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) {
-                    const r = new FileReader();
-                    r.onload = (ev) => setUploadPreview(ev.target?.result as string);
-                    r.readAsDataURL(f);
-                  }
-                }}
+                onChange={handleFileChange}
               />
+            </div>
+          )}
+
+          {/* Result Preview for Image Mode */}
+          {mode === "image" && resultUrl && (
+            <div className="bg-gray-50 rounded-xl p-4 text-center">
+              <img src={resultUrl} alt="Generated sticker" className="max-w-[300px] max-h-[300px] mx-auto rounded-lg" />
+              <a
+                href={resultUrl}
+                download="sticker.png"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 inline-flex items-center gap-2 bg-purple-600 text-white font-medium px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                <Wand2 className="w-4 h-4" /> Download Sticker
+              </a>
             </div>
           )}
 
@@ -148,22 +217,27 @@ export default function StickerGenerator({ initialPrompt }: StickerGeneratorProp
           </div>
 
           {/* Generate */}
-          {canGenerate ? (
-            <a
-              href={generateUrl}
-              className="w-full py-4 rounded-xl font-semibold text-white flex items-center justify-center gap-2 transition-all bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 shadow-lg shadow-purple-200 hover:shadow-purple-300"
-            >
-              <Wand2 className="w-5 h-5" /> Generate Sticker
-            </a>
-          ) : (
-            <button
-              type="button"
-              disabled
-              className="w-full py-4 rounded-xl font-semibold text-white flex items-center justify-center gap-2 bg-gray-300 cursor-not-allowed"
-            >
-              <Wand2 className="w-5 h-5" /> Generate Sticker
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={handleGenerate}
+            disabled={!canGenerate || isGenerating}
+            className={clsx(
+              "w-full py-4 rounded-xl font-semibold text-white flex items-center justify-center gap-2 transition-all",
+              canGenerate && !isGenerating
+                ? "bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 shadow-lg shadow-purple-200 hover:shadow-purple-300"
+                : "bg-gray-300 cursor-not-allowed"
+            )}
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" /> Generating...
+              </>
+            ) : (
+              <>
+                <Wand2 className="w-5 h-5" /> Generate Sticker
+              </>
+            )}
+          </button>
         </div>
       </div>
 
