@@ -149,17 +149,8 @@ def git_commit_and_push():
     commit_msg = f"blog: auto-generate SEO articles {date_str}"
     subprocess.run(["/usr/bin/git", "commit", "-m", commit_msg], check=True)
     
-    # 推送（使用环境变量中的 token）
-    github_token = os.environ.get("GITHUB_TOKEN", "")
-    if not github_token:
-        print("Warning: GITHUB_TOKEN not set, skipping push")
-        return False
-    
-    subprocess.run([
-        "/usr/bin/git", "push", 
-        f"https://{github_token}@github.com/diyizixun/ai-sticker-generator.git",
-        "main:main"
-    ], check=True)
+    # 推送（remote URL 已配置 token，直接 push）
+    subprocess.run(["/usr/bin/git", "push", "origin", "main"], check=True)
     
     print(f"Successfully pushed to GitHub: {commit_msg}")
     return True
