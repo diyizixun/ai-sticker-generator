@@ -1,9 +1,12 @@
 // NextAuth v5 配置 - Auth.js
-// 仅支持 OAuth 登录（Google、Facebook），移除不安全的邮箱登录
+// 支持 OAuth 登录（Google、Facebook）+ 邮箱验证码登录
 
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import Facebook from "next-auth/providers/facebook";
+import Credentials from "next-auth/providers/credentials";
+import { verifyCode } from "@/lib/auth/otp";
+import { findUserByEmail, createUser } from "@/lib/db/users";
 
 // 动态构建providers，没配key的自动跳过
 function getProviders() {
@@ -27,6 +30,53 @@ function getProviders() {
     );
   }
 
+  // 添加邮箱验证码登录
+  providers.push(
+    Credentials({
+      id: "email-otp",
+      name: "Email OTP",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        code: { label: "Verification Code", type: "text" },
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.code) {
+          return null;
+        }
+
+        const email = credentials.email as string;
+        const code = credentials.code as string;
+
+        // 验证验证码
+        const isValid = verifyCode(email, code);
+        if (!isValid) {
+          return null;
+        }
+
+        // 查找或创建用户
+        let dbUser = await findUserByEmail(email);
+        
+        if (!dbUser) {
+          dbUser = await createUser({
+            email,
+            name: email.split('@')[0], // 默认用邮箱前缀作为昵称
+            provider: 'email',
+            provider_id: email,
+          });
+        }
+
+        return {
+          id: dbUser.id,
+          email: dbUser.email,
+          name: dbUser.name,
+          image: null,
+          dbId: dbUser.id,
+          plan: dbUser.plan,
+        } as any;
+      },
+    })
+  );
+
   return providers;
 }
 
@@ -46,9 +96,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             dbUser = await createUser({
               email: user.email,
               name: user.name || undefined,
-              avatar_url: user.image || undefined,
+              avatar_url: (user as any).image || undefined,
               provider: account.provider,
-              provider_id: account.providerAccountId,
+              provider_id: account.providerAccountId || user.email,
             });
           }
           (user as any).dbId = dbUser.id;
