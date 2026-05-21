@@ -86,7 +86,7 @@ export default function PrivacyPolicy() {
           <li>Export your data in a portable format</li>
           <li>Withdraw consent for data processing where applicable</li>
         </ul>
-        <p>To exercise any of these rights, contact us at heroinyan@gmail.com.</p>
+        <p>To exercise any of these rights, contact us at 332847952@qq.com.</p>
 
         <h2>7. Data Security</h2>
         <p>We implement appropriate technical and organizational measures to protect your personal data, including:</p>
@@ -109,7 +109,7 @@ export default function PrivacyPolicy() {
         <h2>11. Contact Us</h2>
         <p>If you have questions about this Privacy Policy or our data practices, please contact us at:</p>
         <ul>
-          <li>Email: heroinyan@gmail.com</li>
+          <li>Email: 332847952@qq.com</li>
           <li>Website: <a href="https://aisticker.pics">aisticker.pics</a></li>
         </ul>
       </main>

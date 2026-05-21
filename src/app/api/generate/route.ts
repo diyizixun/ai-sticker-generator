@@ -13,7 +13,57 @@ const STYLE_PROMPTS: Record<string, string> = {
   vintage: "vintage retro style sticker, aged paper texture, faded colors, distressed look, 1970s aesthetic",
 };
 
-const BLOCKED = ["nude", "nsfw", "porn", "violent", "gore", "hate"];
+// Creem Moderation API 集成
+async function moderatePrompt(prompt: string, userId?: string): Promise<{ allowed: boolean; reason?: string }> {
+  const apiKey = process.env.CREEM_API_KEY;
+  if (!apiKey) {
+    console.warn("CREEM_API_KEY not set, skipping moderation");
+    return { allowed: true };
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000); // 5秒超时
+
+    const response = await fetch("https://api.creem.io/v1/moderation/prompt", {
+      method: "POST",
+      headers: {
+        "x-api-key": apiKey,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        prompt,
+        external_id: userId ? `user_${userId}` : undefined,
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      console.error(`Moderation API error: ${response.status}`);
+      // Fail closed - 审核API失败时拒绝生成
+      return { allowed: false, reason: "moderation_unavailable" };
+    }
+
+    const result = await response.json();
+
+    // 同时阻止 'deny' 和 'flag' 两种状态
+    if (result.decision === "deny" || result.decision === "flag") {
+      return { allowed: false, reason: "prompt_rejected" };
+    }
+
+    return { allowed: true };
+  } catch (e: any) {
+    if (e.name === "AbortError") {
+      console.error("Moderation API timeout");
+    } else {
+      console.error("Moderation API error:", e);
+    }
+    // Fail closed
+    return { allowed: false, reason: "moderation_unavailable" };
+  }
+}
 
 // GET: 优先Pollinations免费生成，Vercel Hobby 9秒超时
 export async function GET(req: NextRequest) {
@@ -26,11 +76,18 @@ export async function GET(req: NextRequest) {
   if (userPrompt.length > 500) {
     return NextResponse.json({ success: false, error: "Description too long" }, { status: 400 });
   }
-  const lower = userPrompt.toLowerCase();
-  for (const w of BLOCKED) {
-    if (lower.includes(w)) {
-      return NextResponse.json({ success: false, error: "Content violates policy" }, { status: 400 });
-    }
+
+  // Creem Moderation 审核
+  const moderation = await moderatePrompt(userPrompt);
+  if (!moderation.allowed) {
+    const errorMessages: Record<string, string> = {
+      "prompt_rejected": "Your prompt was rejected because it violates our content policy. Please revise and try again.",
+      "moderation_unavailable": "Content moderation is temporarily unavailable. Please try again later.",
+    };
+    return NextResponse.json(
+      { success: false, error: errorMessages[moderation.reason || ""] || "Content policy violation" },
+      { status: 400 }
+    );
   }
 
   const stylePrompt = STYLE_PROMPTS[styleId] || "sticker design";
@@ -116,7 +173,20 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { prompt, style } = body;
+    const { prompt, style, userId } = body;
+
+    // Creem Moderation 审核
+    const moderation = await moderatePrompt(prompt, userId);
+    if (!moderation.allowed) {
+      const errorMessages: Record<string, string> = {
+        "prompt_rejected": "Your prompt was rejected because it violates our content policy. Please revise and try again.",
+        "moderation_unavailable": "Content moderation is temporarily unavailable. Please try again later.",
+      };
+      return NextResponse.json(
+        { success: false, error: errorMessages[moderation.reason || ""] || "Content policy violation" },
+        { status: 400 }
+      );
+    }
 
     let authUser: any = null;
     try {
