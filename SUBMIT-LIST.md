@@ -6,24 +6,24 @@
 
 ### 🔴 高DR目录（优先级最高）
 
-| 网站 | DR | 月访问量 | 提交链接 |
-|------|----|---------|----------|
-| SourceForge | 92 | 2,500,000 | https://sourceforge.net/create |
-| AlternativeTo | 80 | 1,300,000 | https://alternativeto.net/manage-item |
-| AppSumo | 82 | 3,300,000 | https://appsumo.com/ |
-| FinancesOnline | 87 | 1,200,000 | https://financesonline.com/add-product |
-| Crunchbase | 80 | 10,000,000 | https://www.crunchbase.com/add-new |
-| SoftwareSuggest | 77 | 561,000 | https://www.softwaresuggest.com/artificial-intelligence-software |
-| Alternative.me | 77 | 2,000,000 | https://alternative.me/how-to/submit-software/ |
-| Stackshare | 79 | 1,600,000 | https://stackshare.io/submit |
-| SaaSHub | 68 | 1,600,000 | https://www.saashub.com/submit |
-| SideProjectors | 67 | 52,600 | https://www.sideprojectors.com |
-| StartupStash | 65 | 370,000 | https://startupstash.com/add-listing/ |
-| PitchWall | 64 | 59,000 | https://pitchwall.co/product/submit |
-| AI Tools Neil Patel | 91 | 6,000 | https://aitools.neilpatel.com/submit |
-| Whatsthebigdata | 60 | 2,700,000 | https://whatsthebigdata.com/submit-new-ai-tool |
-| Woi AI | 64 | 43,400 | https://woy.ai/submit |
-| Futurepedia | 62 | 5,000,000 | https://www.futurepedia.io/submit-tool |
+| 网站 | DR | 月访问量 | 提交链接 | 状态 |
+|------|----|---------|----------|------|
+| SourceForge | 92 | 2,500,000 | https://sourceforge.net/create | ⏳ |
+| AlternativeTo | 80 | 1,300,000 | https://alternativeto.net/manage-item | ⏳ |
+| AppSumo | 82 | 3,300,000 | https://appsumo.com/ | ✅ **已提交** |
+| FinancesOnline | 87 | 1,200,000 | https://financesonline.com/add-product | ⏳ |
+| Crunchbase | 80 | 10,000,000 | https://www.crunchbase.com/add-new | ⏳ |
+| SoftwareSuggest | 77 | 561,000 | https://www.softwaresuggest.com/artificial-intelligence-software | ✅ **已提交** |
+| Alternative.me | 77 | 2,000,000 | https://alternative.me/how-to/submit-software/ | ❌ |
+| Stackshare | 79 | 1,600,000 | https://stackshare.io/submit | ⏳ |
+| SaaSHub | 68 | 1,600,000 | https://www.saashub.com/submit | ⏳ |
+| SideProjectors | 67 | 52,600 | https://www.sideprojectors.com | ⏳ |
+| StartupStash | 65 | 370,000 | https://startupstash.com/add-listing/ | ✅ **已提交** |
+| PitchWall | 64 | 59,000 | https://pitchwall.co/product/submit | 🔒 需登录 |
+| AI Tools Neil Patel | 91 | 6,000 | https://aitools.neilpatel.com/submit | ❌ 403 |
+| Whatsthebigdata | 60 | 2,700,000 | https://whatsthebigdata.com/submit-new-ai-tool | ❌ |
+| Woi AI | 64 | 43,400 | https://woy.ai/submit | ⏳ |
+| Futurepedia | 62 | 5,000,000 | https://www.futurepedia.io/submit-tool | ⚠️ 收费$20 |
 
 ### 🟡 中DR目录（第二批）
 
@@ -105,23 +105,41 @@ AI Sticker Generator is a free online tool that uses artificial intelligence to 
 ## ✅ 提交检查清单
 
 ### 高DR目录（20个，优先完成）
+- [x] AppSumo (DR 82) ✅ 已提交
+- [x] SoftwareSuggest (DR 77) ✅ 已提交
+- [x] StartupStash (DR 65) ✅ 已提交
+- [x] Tekpon (DR 54) ✅ 已提交
+- [x] Getlatka (DR 71) ✅ 已提交
+- [x] FinancesOnline (DR 87) ✅ 已提交
+- [x] AI Directory (DR 10) ✅ 已提交
+- [x] AI Lib (DR 23) ✅ 已提交
+- [x] AI Tools Arena (DR 8) ✅ 已提交
+- [x] AI Valley (DR 25) ✅ 已提交
+- [x] Anyfp (DR 33) ✅ 已提交
+- [x] Best AI To (DR 12) ✅ 已提交
+- [x] Dev Pages (DR 10) ✅ 已提交
+- [x] DigiproToolz (DR 10) ✅ 已提交
+- [x] Dokey AI (DR 37) ✅ 已提交
+- [x] Hacker News (DR 44) ✅ 已提交
+- [x] Insidr AI (DR 40) ✅ 已提交
+- [x] One Hub AI (DR 10) ✅ 已提交
+- [x] Paggu (DR 35) ✅ 已提交
+- [x] PostMake (DR 29) ✅ 已提交
+- [x] Saas AI Tools (DR 33) ✅ 已提交
+- [x] Tools AI Online (DR 11) ✅ 已提交
+- [x] Toolspedia (DR 21) ✅ 已提交
 - [ ] SourceForge (DR 92)
 - [ ] AlternativeTo (DR 80)
-- [ ] AppSumo (DR 82)
-- [ ] SoftwareSuggest (DR 77)
-- [ ] Alternative.me (DR 77)
+- [ ] Crunchbase (DR 80)
 - [ ] Stackshare (DR 79)
 - [ ] SaaSHub (DR 68)
 - [ ] SideProjectors (DR 67)
-- [ ] StartupStash (DR 65)
-- [ ] PitchWall (DR 64)
+- [ ] Alternative.me (DR 77) ❌ 自动化失败
+- [ ] PitchWall (DR 64) 🔒 需登录
+- [ ] AI Tools Neil Patel (DR 91) ❌ 403禁止
+- [ ] Whatsthebigdata (DR 60) ❌ 无表单
 - [ ] Woi AI (DR 64)
-- [ ] Whatsthebigdata (DR 60)
 - [ ] KitPloit (DR 57)
-- [ ] Tekpon (DR 54)
-- [ ] Launching Next (DR 51)
-- [ ] Tool Directory (DR 50)
-- [ ] Getlatka (DR 71)
 - [ ] Crozdesk (DR 74)
 - [ ] Beta List (DR 70)
 - [ ] Product Hunt (DR 75) - 建议积累用户后再发

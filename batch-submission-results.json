@@ -1,0 +1,851 @@
+[
+  {
+    "status": "submitted",
+    "url": "https://appsumo.com/",
+    "submit_url": "https://appsumo.com/",
+    "fields_count": 1,
+    "response_status": 200,
+    "name": "AppSumo",
+    "notes": "DR 82",
+    "timestamp": "2026-05-21T13:03:27.350087"
+  },
+  {
+    "status": "submitted",
+    "url": "https://www.softwaresuggest.com/artificial-intelligence-software",
+    "submit_url": "https://www.softwaresuggest.com/artificial-intelligence-software",
+    "fields_count": 2,
+    "response_status": 200,
+    "name": "SoftwareSuggest",
+    "notes": "DR 77",
+    "timestamp": "2026-05-21T13:03:31.036655"
+  },
+  {
+    "status": "no_form",
+    "url": "https://alternative.me/how-to/submit-software/",
+    "name": "Alternative.me",
+    "notes": "DR 77",
+    "timestamp": "2026-05-21T13:03:34.265574"
+  },
+  {
+    "status": "no_matching_fields",
+    "url": "https://www.saashub.com/submit",
+    "name": "SaaSHub",
+    "notes": "DR 68",
+    "timestamp": "2026-05-21T13:03:37.212875"
+  },
+  {
+    "status": "submitted",
+    "url": "https://startupstash.com/add-listing/",
+    "submit_url": "https://startupstash.com/add-listing/#wpcf7-f26887-o1",
+    "fields_count": 2,
+    "response_status": 200,
+    "name": "StartupStash",
+    "notes": "DR 65",
+    "timestamp": "2026-05-21T13:03:40.979396"
+  },
+  {
+    "status": "no_matching_fields",
+    "url": "https://whatsthebigdata.com/submit-new-ai-tool",
+    "name": "Whatsthebigdata",
+    "notes": "DR 60",
+    "timestamp": "2026-05-21T13:03:44.216428"
+  },
+  {
+    "status": "submitted",
+    "url": "https://tekpon.com/get-listed",
+    "submit_url": "https://tekpon.com/get-listed",
+    "fields_count": 1,
+    "response_status": 200,
+    "name": "Tekpon",
+    "notes": "DR 54",
+    "timestamp": "2026-05-21T13:03:49.003925"
+  },
+  {
+    "status": "http_403",
+    "url": "https://www.launchingnext.com/submit/",
+    "name": "Launching Next",
+    "notes": "DR 51",
+    "timestamp": "2026-05-21T13:03:51.567143"
+  },
+  {
+    "status": "post_failed_405",
+    "url": "https://tooldirectory.ai/submit-tool",
+    "submit_url": "https://tooldirectory.ai/submit-tool",
+    "name": "Tool Directory",
+    "notes": "DR 50",
+    "timestamp": "2026-05-21T13:03:54.182542"
+  },
+  {
+    "status": "submitted",
+    "url": "https://getlatka.com/saas-companies",
+    "submit_url": "https://getlatka.com/saas-companies",
+    "fields_count": 1,
+    "response_status": 200,
+    "name": "Getlatka",
+    "notes": "DR 71",
+    "timestamp": "2026-05-21T13:03:58.098999"
+  },
+  {
+    "status": "http_403",
+    "url": "https://aitools.neilpatel.com/submit",
+    "name": "AI Tools Neil Patel",
+    "notes": "DR 91",
+    "timestamp": "2026-05-21T13:04:00.681635"
+  },
+  {
+    "status": "no_form",
+    "url": "https://auraplusplus.com/",
+    "name": "Aura++",
+    "notes": "DR 62",
+    "timestamp": "2026-05-21T13:04:06.000534"
+  },
+  {
+    "status": "no_matching_fields",
+    "url": "https://indiehunt.io/",
+    "name": "IndieHunt",
+    "notes": "DR 32",
+    "timestamp": "2026-05-21T13:04:09.576342"
+  },
+  {
+    "status": "no_matching_fields",
+    "url": "https://earlyhunt.com/",
+    "name": "EarlyHunt",
+    "notes": "DR 25",
+    "timestamp": "2026-05-21T13:04:12.958300"
+  },
+  {
+    "status": "no_matching_fields",
+    "url": "https://uno.directory/",
+    "name": "Uno Directory",
+    "notes": "DR 45",
+    "timestamp": "2026-05-21T13:04:15.885739"
+  },
+  {
+    "status": "post_failed_419",
+    "url": "https://1000.tools/my/tools/create",
+    "submit_url": "https://1000.tools/signup",
+    "name": "1000 Tools",
+    "notes": "DR 23",
+    "timestamp": "2026-05-21T13:04:19.826995"
+  },
+  {
+    "status": "http_404",
+    "url": "https://aicenter.ai/products/submit",
+    "name": "AI Center",
+    "notes": "DR 10",
+    "timestamp": "2026-05-21T13:04:23.208711"
+  },
+  {
+    "status": "no_form",
+    "url": "https://aidepot.co",
+    "name": "AI Depot",
+    "notes": "DR 11",
+    "timestamp": "2026-05-21T13:04:26.469035"
+  },
+  {
+    "status": "submitted",
+    "url": "https://www.aidirectory.org/user-submit/",
+    "submit_url": "https://www.aidirectory.org/user-submit/",
+    "fields_count": 7,
+    "response_status": 200,
+    "name": "AI Directory",
+    "notes": "DR 10",
+    "timestamp": "2026-05-21T13:04:31.406268"
+  },
+  {
+    "status": "no_form",
+    "url": "https://www.aiwizard.ai/submit",
+    "name": "AI Dude Info",
+    "notes": "DR 13",
+    "timestamp": "2026-05-21T13:04:33.811140"
+  },
+  {
+    "status": "no_form",
+    "url": "https://ai-hunter.io/submit-ai-tool/",
+    "name": "AI Hunter",
+    "notes": "DR 10",
+    "timestamp": "2026-05-21T13:04:37.545865"
+  },
+  {
+    "status": "submitted",
+    "url": "https://ailib.ru/",
+    "submit_url": "https://ailib.ru/",
+    "fields_count": 1,
+    "response_status": 200,
+    "name": "AI Lib",
+    "notes": "DR 23",
+    "timestamp": "2026-05-21T13:04:47.868797"
+  },
+  {
+    "status": "no_form",
+    "url": "https://library.phygital.plus/tool-submission",
+    "name": "AI Library",
+    "notes": "DR 17",
+    "timestamp": "2026-05-21T13:04:51.269517"
+  },
+  {
+    "status": "no_form",
+    "url": "https://aimarketing.directory/submit",
+    "name": "AI Marketing",
+    "notes": "DR 12",
+    "timestamp": "2026-05-21T13:04:54.737704"
+  },
+  {
+    "status": "no_form",
+    "url": "https://aitogrow.com/#send-your-tool",
+    "name": "AI To Grow",
+    "notes": "DR 15",
+    "timestamp": "2026-05-21T13:04:58.492730"
+  },
+  {
+    "status": "post_failed_405",
+    "url": "https://aitoolboard.com/submit-ai-tool",
+    "submit_url": "https://aitoolboard.com/submit-ai-tool",
+    "name": "AI Tool Board",
+    "notes": "DR 3",
+    "timestamp": "2026-05-21T13:05:01.709634"
+  },
+  {
+    "status": "http_403",
+    "url": "https://www.aitoolnet.com/",
+    "name": "AI Tool NET",
+    "notes": "DR 35",
+    "timestamp": "2026-05-21T13:05:04.190300"
+  },
+  {
+    "status": "submitted",
+    "url": "https://aitoolsarena.com/",
+    "submit_url": "https://aitoolsarena.com/",
+    "fields_count": 1,
+    "response_status": 200,
+    "name": "AI Tools Arena",
+    "notes": "DR 8",
+    "timestamp": "2026-05-21T13:05:08.904247"
+  },
+  {
+    "status": "no_matching_fields",
+    "url": "https://aitoolsguide.com/contact/",
+    "name": "AI Tools Guide",
+    "notes": "DR 10",
+    "timestamp": "2026-05-21T13:05:12.468414"
+  },
+  {
+    "status": "post_failed_405",
+    "url": "https://aitoolswiki.com/contact-us/",
+    "submit_url": "https://aitoolswiki.com/contact-us/",
+    "name": "AI Tools Wiki",
+    "notes": "DR 10",
+    "timestamp": "2026-05-21T13:05:15.736528"
+  },
+  {
+    "status": "submitted",
+    "url": "https://aitrendz.xyz/submit-ai-link",
+    "submit_url": "https://aitrendz.xyz/submit-ai-link/",
+    "fields_count": 3,
+    "response_status": 200,
+    "name": "AI trendz",
+    "notes": "DR 8",
+    "timestamp": "2026-05-21T13:05:23.244305"
+  },
+  {
+    "status": "submitted",
+    "url": "https://aivalley.ai/submit-tool",
+    "submit_url": "https://aivalley.ai/submit-tool/#wpcf7-f2086-p2088-o1",
+    "fields_count": 5,
+    "response_status": 200,
+    "name": "AI Valley",
+    "notes": "DR 25",
+    "timestamp": "2026-05-21T13:05:27.211256"
+  },
+  {
+    "status": "no_form",
+    "url": "https://www.aiwizard.ai/submit",
+    "name": "AI Wizard",
+    "notes": "DR 10",
+    "timestamp": "2026-05-21T13:05:29.594229"
+  },
+  {
+    "status": "post_failed_404",
+    "url": "https://aixcollection.com/submit",
+    "submit_url": "https://aixcollection.com/search",
+    "name": "AIX Collection",
+    "notes": "DR 10",
+    "timestamp": "2026-05-21T13:05:33.317223"
+  },
+  {
+    "status": "http_404",
+    "url": "https://github.com/alteropen-com/alteropen/tree/main/content/app",
+    "name": "AlterOpen",
+    "notes": "DR 0",
+    "timestamp": "2026-05-21T13:05:36.744704"
+  },
+  {
+    "status": "submitted",
+    "url": "https://anyfp.com/contact",
+    "submit_url": "https://anyfp.com/contact",
+    "fields_count": 6,
+    "response_status": 200,
+    "name": "Anyfp",
+    "notes": "DR 33",
+    "timestamp": "2026-05-21T13:05:40.928859"
+  },
+  {
+    "status": "no_matching_fields",
+    "url": "https://appscribed.com/product-list",
+    "name": "Appscriber",
+    "notes": "DR 34",
+    "timestamp": "2026-05-21T13:05:43.837699"
+  },
+  {
+    "status": "no_matching_fields",
+    "url": "https://appsthunder.com/submit-your-app",
+    "name": "AppsHunter",
+    "notes": "DR 29",
+    "timestamp": "2026-05-21T13:05:48.015587"
+  },
+  {
+    "status": "submitted",
+    "url": "https://bestaito.com/submit-a-ai-tool",
+    "submit_url": "https://bestaito.com/submit-a-ai-tool",
+    "fields_count": 1,
+    "response_status": 200,
+    "name": "Best AI To",
+    "notes": "DR 12",
+    "timestamp": "2026-05-21T13:05:51.681592"
+  },
+  {
+    "status": "no_matching_fields",
+    "url": "https://www.startupaitools.com/",
+    "name": "Best AI Tools",
+    "notes": "DR 10",
+    "timestamp": "2026-05-21T13:05:54.636942"
+  },
+  {
+    "status": "no_form",
+    "url": "https://www.brouseai.com",
+    "name": "BroUseAI",
+    "notes": "DR 35",
+    "timestamp": "2026-05-21T13:05:57.908692"
+  },
+  {
+    "status": "no_matching_fields",
+    "url": "https://www.bufferapps.com/beta-listing/new",
+    "name": "Buffer Apps",
+    "notes": "DR 11",
+    "timestamp": "2026-05-21T13:06:06.843448"
+  },
+  {
+    "status": "no_form",
+    "url": "https://chatgptdemo.com/submit-a-product/",
+    "name": "ChatGPT demo",
+    "notes": "DR 30",
+    "timestamp": "2026-05-21T13:06:09.550087"
+  },
+  {
+    "status": "post_failed_405",
+    "url": "https://dang.ai",
+    "submit_url": "https://dang.ai",
+    "name": "Dang AI",
+    "notes": "DR 45",
+    "timestamp": "2026-05-21T13:06:18.250092"
+  },
+  {
+    "status": "submitted",
+    "url": "https://www.devpages.io/submit-a-tool",
+    "submit_url": "https://www.devpages.io/submit-a-tool",
+    "fields_count": 6,
+    "response_status": 200,
+    "name": "Dev Pages",
+    "notes": "DR 10",
+    "timestamp": "2026-05-21T13:06:22.912637"
+  },
+  {
+    "status": "submitted",
+    "url": "https://digiprotoolz.com/contact-us/",
+    "submit_url": "https://digiprotoolz.com/search",
+    "fields_count": 1,
+    "response_status": 200,
+    "name": "DigiproToolz",
+    "notes": "DR 10",
+    "timestamp": "2026-05-21T13:06:28.786742"
+  },
+  {
+    "status": "submitted",
+    "url": "https://dokeyai.com/submit?ref=aidirectori.es",
+    "submit_url": "https://dokeyai.com/submit?ref=aidirectori.es",
+    "fields_count": 1,
+    "response_status": 200,
+    "name": "Dokey AI",
+    "notes": "DR 37",
+    "timestamp": "2026-05-21T13:06:31.696439"
+  },
+  {
+    "status": "no_form",
+    "url": "https://easysaveai.com/submit-your-ai-tool/",
+    "name": "Easy Save AI",
+    "notes": "DR 7",
+    "timestamp": "2026-05-21T13:06:35.496426"
+  },
+  {
+    "status": "http_403",
+    "url": "https://easywithai.com/submit-tool/",
+    "name": "Easy with AI",
+    "notes": "DR 33",
+    "timestamp": "2026-05-21T13:06:38.099392"
+  },
+  {
+    "status": "no_form",
+    "url": "https://aieducator.tools",
+    "name": "Educator Tools",
+    "notes": "DR 25",
+    "timestamp": "2026-05-21T13:06:40.871403"
+  },
+  {
+    "status": "no_form",
+    "url": "https://fazier.com/submit",
+    "name": "Fazier",
+    "notes": "DR 5",
+    "timestamp": "2026-05-21T13:06:44.187697"
+  },
+  {
+    "status": "submitted",
+    "url": "https://financesonline.com/add-product",
+    "submit_url": "https://financesonline.com",
+    "fields_count": 1,
+    "response_status": 200,
+    "name": "FinancesOnline",
+    "notes": "DR 87",
+    "timestamp": "2026-05-21T13:06:48.101213"
+  },
+  {
+    "status": "no_form",
+    "url": "https://findmyaitool.com/submit-tool",
+    "name": "Find My AI Tool",
+    "notes": "DR 36",
+    "timestamp": "2026-05-21T13:06:51.366878"
+  },
+  {
+    "status": "no_form",
+    "url": "https://www.first100users.com/submit",
+    "name": "First 100 users",
+    "notes": "DR 18",
+    "timestamp": "2026-05-21T13:06:54.785025"
+  },
+  {
+    "status": "submitted",
+    "url": "https://free-ai-tools-directory.com/submit-request",
+    "submit_url": "https://free-ai-tools-directory.com/submit-request/",
+    "fields_count": 1,
+    "response_status": 200,
+    "name": "Free AI Tools Directory",
+    "notes": "DR 11",
+    "timestamp": "2026-05-21T13:06:59.331891"
+  },
+  {
+    "status": "post_failed_405",
+    "url": "https://www.futuretools.io/submit-a-tool",
+    "submit_url": "https://www.futuretools.io/submit-a-tool",
+    "name": "Future Tools",
+    "notes": "DR 44",
+    "timestamp": "2026-05-21T13:07:02.866749"
+  },
+  {
+    "status": "no_form",
+    "url": "https://www.gate2ai.com/submit-tool",
+    "name": "Gate2AI",
+    "notes": "DR 27",
+    "timestamp": "2026-05-21T13:07:06.016865"
+  },
+  {
+    "status": "post_failed_405",
+    "url": "https://goodaitools.com/submit",
+    "submit_url": "https://goodaitools.com/search",
+    "name": "Good AI Tools",
+    "notes": "DR 0",
+    "timestamp": "2026-05-21T13:07:09.777901"
+  },
+  {
+    "status": "no_form",
+    "url": "https://www.gptacademy.co/submit",
+    "name": "GPT Academy",
+    "notes": "DR 14",
+    "timestamp": "2026-05-21T13:07:13.106167"
+  },
+  {
+    "status": "no_form",
+    "url": "https://gpte.ai/submit-a-tool",
+    "name": "GPTE",
+    "notes": "DR 31",
+    "timestamp": "2026-05-21T13:07:16.170181"
+  },
+  {
+    "status": "http_403",
+    "url": "https://www.gptshunter.com/submit-gpt",
+    "name": "GPTs Hunter",
+    "notes": "DR 59",
+    "timestamp": "2026-05-21T13:07:18.631164"
+  },
+  {
+    "status": "submitted",
+    "url": "https://news.ycombinator.com/submit",
+    "submit_url": "https://news.ycombinator.com/submit",
+    "fields_count": 1,
+    "response_status": 200,
+    "name": "Hacker News",
+    "notes": "DR 44",
+    "timestamp": "2026-05-21T13:07:22.260122"
+  },
+  {
+    "status": "no_form",
+    "url": "https://www.igniter.ai/",
+    "name": "Igniter",
+    "notes": "DR 7",
+    "timestamp": "2026-05-21T13:07:25.391627"
+  },
+  {
+    "status": "submitted",
+    "url": "https://www.insidr.ai/submit-tools/",
+    "submit_url": "https://www.insidr.ai/submit-tools/",
+    "fields_count": 3,
+    "response_status": 200,
+    "name": "Insidr AI",
+    "notes": "DR 40",
+    "timestamp": "2026-05-21T13:07:32.714012"
+  },
+  {
+    "status": "post_failed_500",
+    "url": "https://inventlist.com/sites/new",
+    "submit_url": "https://inventlist.com/users/sign_in",
+    "name": "Invent List",
+    "notes": "DR 2.5",
+    "timestamp": "2026-05-21T13:07:37.149271"
+  },
+  {
+    "status": "post_failed_403",
+    "url": "https://www.joinly.xyz/submit-startup",
+    "submit_url": "https://www.joinly.xyz/submissions",
+    "name": "Joinly",
+    "notes": "DR 25",
+    "timestamp": "2026-05-21T13:07:41.697811"
+  },
+  {
+    "status": "no_matching_fields",
+    "url": "https://www.lachief.io/",
+    "name": "Lachief",
+    "notes": "DR 23",
+    "timestamp": "2026-05-21T13:07:44.435397"
+  },
+  {
+    "status": "post_failed_500",
+    "url": "https://launched.io/SubmitStartup",
+    "submit_url": "https://launched.io/SubmitStartup",
+    "name": "Launched",
+    "notes": "DR 38",
+    "timestamp": "2026-05-21T13:07:48.317032"
+  },
+  {
+    "status": "no_form",
+    "url": "https://launched.site/submit",
+    "name": "Launched Site",
+    "notes": "DR 45",
+    "timestamp": "2026-05-21T13:07:51.948473"
+  },
+  {
+    "status": "http_404",
+    "url": "https://lookaitools.com/submission-service",
+    "name": "Look AI Tools",
+    "notes": "DR 6",
+    "timestamp": "2026-05-21T13:07:55.228350"
+  },
+  {
+    "status": "post_failed_400",
+    "url": "https://www.marsx.dev/ai-startups",
+    "submit_url": "https://api.unicornplatform.com/api/v1/websites/send_to_google_sheet",
+    "name": "Mars AI directory",
+    "notes": "DR 30",
+    "timestamp": "2026-05-21T13:08:00.583065"
+  },
+  {
+    "status": "no_matching_fields",
+    "url": "https://microlaunch.net",
+    "name": "MicroLaunch",
+    "notes": "DR 2",
+    "timestamp": "2026-05-21T13:08:04.569262"
+  },
+  {
+    "status": "no_form",
+    "url": "https://www.microstartups.co/list-your-startup",
+    "name": "MicroStartups",
+    "notes": "DR 3.1",
+    "timestamp": "2026-05-21T13:08:07.669877"
+  },
+  {
+    "status": "no_matching_fields",
+    "url": "https://nextgentools.me/submit-your-tool",
+    "name": "Next Gen Tools",
+    "notes": "DR 27",
+    "timestamp": "2026-05-21T13:08:11.681765"
+  },
+  {
+    "status": "no_form",
+    "url": "https://www.nextpedia.io/submit-tool",
+    "name": "Nextpedia",
+    "notes": "DR 11",
+    "timestamp": "2026-05-21T13:08:14.359608"
+  },
+  {
+    "status": "submitted",
+    "url": "https://www.onehubai.com/",
+    "submit_url": "https://www.onehubai.com/search/-------------.html",
+    "fields_count": 1,
+    "response_status": 200,
+    "name": "One Hub AI",
+    "notes": "DR 10",
+    "timestamp": "2026-05-21T13:08:18.060301"
+  },
+  {
+    "status": "http_403",
+    "url": "https://openfuture.ai/submit-tool",
+    "name": "Open Future",
+    "notes": "DR 31",
+    "timestamp": "2026-05-21T13:08:20.464291"
+  },
+  {
+    "status": "no_form",
+    "url": "https://orbic.ai/submit/tools",
+    "name": "Orbic AI",
+    "notes": "DR 5",
+    "timestamp": "2026-05-21T13:08:23.640092"
+  },
+  {
+    "status": "submitted",
+    "url": "https://www.paggu.com/submit-your-startup/",
+    "submit_url": "https://www.paggu.com/submit-your-startup/",
+    "fields_count": 1,
+    "response_status": 200,
+    "name": "Paggu",
+    "notes": "DR 35",
+    "timestamp": "2026-05-21T13:08:27.099928"
+  },
+  {
+    "status": "submitted",
+    "url": "https://postmake.io/",
+    "submit_url": "https://postmake.io/",
+    "fields_count": 1,
+    "response_status": 200,
+    "name": "PostMake",
+    "notes": "DR 29",
+    "timestamp": "2026-05-21T13:08:30.910052"
+  },
+  {
+    "status": "no_form",
+    "url": "https://tools.robingood.com",
+    "name": "Robingood",
+    "notes": "DR 33",
+    "timestamp": "2026-05-21T13:08:34.756673"
+  },
+  {
+    "status": "submitted",
+    "url": "https://saasaitools.com/submit/",
+    "submit_url": "https://saasaitools.com/submit/",
+    "fields_count": 1,
+    "response_status": 200,
+    "name": "Saas AI Tools",
+    "notes": "DR 33",
+    "timestamp": "2026-05-21T13:08:42.259786"
+  },
+  {
+    "status": "http_403",
+    "url": "https://www.saaspo.com/submit",
+    "name": "Saas Po",
+    "notes": "DR 29",
+    "timestamp": "2026-05-21T13:08:45.506929"
+  },
+  {
+    "status": "no_matching_fields",
+    "url": "https://saassurf.com/submit-a-product",
+    "name": "Saas Surf",
+    "notes": "DR 21",
+    "timestamp": "2026-05-21T13:08:48.232196"
+  },
+  {
+    "status": "no_form",
+    "url": "https://saasbaba.com/add-ai-tool/",
+    "name": "SaasBaba",
+    "notes": "DR 10",
+    "timestamp": "2026-05-21T13:08:50.983236"
+  },
+  {
+    "status": "no_form",
+    "url": "https://www.sick.tools/",
+    "name": "Sick Tools",
+    "notes": "DR 0",
+    "timestamp": "2026-05-21T13:08:54.942310"
+  },
+  {
+    "status": "no_form",
+    "url": "https://sidebar.io/submit",
+    "name": "Sidebar",
+    "notes": "DR 71",
+    "timestamp": "2026-05-21T13:08:58.461245"
+  },
+  {
+    "status": "post_failed_405",
+    "url": "https://www.smart-tools.ai/en/submit",
+    "submit_url": "https://www.smart-tools.ai/en/submit",
+    "name": "Smart Tools",
+    "notes": "DR 11",
+    "timestamp": "2026-05-21T13:09:03.268331"
+  },
+  {
+    "status": "post_failed_405",
+    "url": "https://www.startups.fyi/",
+    "submit_url": "https://www.startups.fyi/",
+    "name": "Startup AI Tools",
+    "notes": "DR 22",
+    "timestamp": "2026-05-21T13:09:06.749876"
+  },
+  {
+    "status": "http_403",
+    "url": "https://startupbuffer.com/site/submit",
+    "name": "Startup Buffer",
+    "notes": "DR 36",
+    "timestamp": "2026-05-21T13:09:09.112541"
+  },
+  {
+    "status": "no_form",
+    "url": "https://startupcollections.com/submit-product",
+    "name": "Startup Collections",
+    "notes": "DR 22",
+    "timestamp": "2026-05-21T13:09:12.895857"
+  },
+  {
+    "status": "submitted",
+    "url": "https://startupstash.com/add-listing/",
+    "submit_url": "https://startupstash.com/add-listing/#wpcf7-f26887-o1",
+    "fields_count": 2,
+    "response_status": 200,
+    "name": "Startup Stash",
+    "notes": "DR 65",
+    "timestamp": "2026-05-21T13:09:16.170894"
+  },
+  {
+    "status": "no_matching_fields",
+    "url": "https://startup88.com",
+    "name": "Startup88",
+    "notes": "DR 25",
+    "timestamp": "2026-05-21T13:09:19.988197"
+  },
+  {
+    "status": "post_failed_405",
+    "url": "https://www.startups.fyi",
+    "submit_url": "https://www.startups.fyi",
+    "name": "Startups.fyi",
+    "notes": "DR 25",
+    "timestamp": "2026-05-21T13:09:22.720020"
+  },
+  {
+    "status": "post_failed_403",
+    "url": "https://supertools.therundown.ai/submit",
+    "submit_url": "https://rundown-university-next-git-dev-the-rundown.vercel.app/api/newsletter/subscribe",
+    "name": "Super Tools",
+    "notes": "DR 20",
+    "timestamp": "2026-05-21T13:09:29.587752"
+  },
+  {
+    "status": "submitted",
+    "url": "https://tekpon.com/get-listed",
+    "submit_url": "https://tekpon.com/get-listed",
+    "fields_count": 1,
+    "response_status": 200,
+    "name": "Tekpon",
+    "notes": "DR 54",
+    "timestamp": "2026-05-21T13:09:34.277955"
+  },
+  {
+    "status": "post_failed_403",
+    "url": "https://inside.thewarehouse.ai/submissions",
+    "submit_url": "https://inside.thewarehouse.ai/submissions",
+    "name": "The AI Warehouse",
+    "notes": "DR 11",
+    "timestamp": "2026-05-21T13:09:37.540762"
+  },
+  {
+    "status": "post_failed_419",
+    "url": "https://thehackstack.com/register",
+    "submit_url": "https://thehackstack.com/register",
+    "name": "The Hack Stack",
+    "notes": "DR 10",
+    "timestamp": "2026-05-21T13:09:41.106093"
+  },
+  {
+    "status": "no_form",
+    "url": "https://www.tinystartups.co",
+    "name": "Tiny Startups",
+    "notes": "DR 4.4",
+    "timestamp": "2026-05-21T13:09:46.472703"
+  },
+  {
+    "status": "no_form",
+    "url": "https://tipseason.com/ai-tools/submit",
+    "name": "TipSeason",
+    "notes": "DR 27",
+    "timestamp": "2026-05-21T13:09:49.592361"
+  },
+  {
+    "status": "no_matching_fields",
+    "url": "https://www.toolpilot.ai/pages/submit-your-ai-tool",
+    "name": "Tool Pilot",
+    "notes": "DR 51",
+    "timestamp": "2026-05-21T13:09:52.563078"
+  },
+  {
+    "status": "post_failed_405",
+    "url": "https://toolio.ai/submit-a-tool",
+    "submit_url": "https://toolio.ai/submit-a-tool",
+    "name": "Toolio AI",
+    "notes": "DR 34",
+    "timestamp": "2026-05-21T13:09:56.651951"
+  },
+  {
+    "status": "submitted",
+    "url": "https://www.tools-ai.online/tool-submit",
+    "submit_url": "https://www.tools-ai.online/tool-submit",
+    "fields_count": 4,
+    "response_status": 200,
+    "name": "Tools AI Online",
+    "notes": "DR 11",
+    "timestamp": "2026-05-21T13:10:00.818022"
+  },
+  {
+    "status": "no_form",
+    "url": "https://tools.so/",
+    "name": "Tools.so",
+    "notes": "DR 15",
+    "timestamp": "2026-05-21T13:10:03.790080"
+  },
+  {
+    "status": "no_matching_fields",
+    "url": "https://toolsfine.com",
+    "name": "ToolsFine",
+    "notes": "DR 38",
+    "timestamp": "2026-05-21T13:10:07.534708"
+  },
+  {
+    "status": "submitted",
+    "url": "https://www.toolspedia.io/submit-tool/",
+    "submit_url": "https://www.toolspedia.io/submit-tool/",
+    "fields_count": 5,
+    "response_status": 200,
+    "name": "Toolspedia",
+    "notes": "DR 21",
+    "timestamp": "2026-05-21T13:10:14.335404"
+  },
+  {
+    "status": "http_403",
+    "url": "https://victrays.com/submit-tool/",
+    "name": "Victrays",
+    "notes": "DR 10",
+    "timestamp": "2026-05-21T13:10:16.752503"
+  }
+]

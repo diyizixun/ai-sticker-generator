@@ -1,0 +1,112 @@
+[
+  {
+    "name": "AppSumo",
+    "url": "https://appsumo.com/",
+    "notes": "DR 82",
+    "status": "submitted",
+    "timestamp": "2026-05-21T13:01:24.971782",
+    "submit_url": "https://appsumo.com/",
+    "fields_submitted": [
+      "email"
+    ]
+  },
+  {
+    "name": "SoftwareSuggest",
+    "url": "https://www.softwaresuggest.com/artificial-intelligence-software",
+    "notes": "DR 77",
+    "status": "submitted",
+    "timestamp": "2026-05-21T13:01:30.105390",
+    "submit_url": "https://www.softwaresuggest.com/search/index",
+    "fields_submitted": [
+      "ssleadpost[categoryid]",
+      "ssleadpost[name]",
+      "ssleadpost[email]"
+    ]
+  },
+  {
+    "name": "Alternative.me",
+    "url": "https://alternative.me/how-to/submit-software/",
+    "notes": "DR 77",
+    "status": "no_form_found",
+    "timestamp": "2026-05-21T13:01:35.464097"
+  },
+  {
+    "name": "SaaSHub",
+    "url": "https://www.saashub.com/submit",
+    "notes": "DR 68",
+    "status": "no_matching_fields",
+    "timestamp": "2026-05-21T13:01:39.760856"
+  },
+  {
+    "name": "StartupStash",
+    "url": "https://startupstash.com/add-listing/",
+    "notes": "DR 65",
+    "status": "submitted",
+    "timestamp": "2026-05-21T13:01:43.845110",
+    "submit_url": "https://startupstash.com/add-listing/#wpcf7-f26887-o1",
+    "fields_submitted": [
+      "_wpcf7_unit_tag",
+      "your-email"
+    ]
+  },
+  {
+    "name": "Whatsthebigdata",
+    "url": "https://whatsthebigdata.com/submit-new-ai-tool",
+    "notes": "DR 60",
+    "status": "no_form_found",
+    "timestamp": "2026-05-21T13:01:48.431114"
+  },
+  {
+    "name": "Aura++",
+    "url": "https://auraplusplus.com/",
+    "notes": "DR 62",
+    "status": "no_form_found",
+    "timestamp": "2026-05-21T13:01:52.843077"
+  },
+  {
+    "name": "Tekpon",
+    "url": "https://tekpon.com/get-listed",
+    "notes": "DR 54",
+    "status": "submitted",
+    "timestamp": "2026-05-21T13:01:59.310505",
+    "submit_url": "https://tekpon.com/search/",
+    "fields_submitted": [
+      "product",
+      "product_id",
+      "gl-categories-search",
+      "categories[]",
+      "website",
+      "desc",
+      "name",
+      "email"
+    ]
+  },
+  {
+    "name": "Launching Next",
+    "url": "https://www.launchingnext.com/submit/",
+    "notes": "DR 51",
+    "status": "http_403",
+    "timestamp": "2026-05-21T13:02:04.973230"
+  },
+  {
+    "name": "Tool Directory",
+    "url": "https://tooldirectory.ai/submit-tool",
+    "notes": "DR 50",
+    "status": "post_failed_405",
+    "timestamp": "2026-05-21T13:02:08.339809"
+  },
+  {
+    "name": "Getlatka",
+    "url": "https://getlatka.com/saas-companies",
+    "notes": "DR 71",
+    "status": "no_matching_fields",
+    "timestamp": "2026-05-21T13:02:11.983420"
+  },
+  {
+    "name": "AI Tools Neil Patel",
+    "url": "https://aitools.neilpatel.com/submit",
+    "notes": "DR 91",
+    "status": "http_403",
+    "timestamp": "2026-05-21T13:02:16.445771"
+  }
+]

@@ -1,0 +1,1468 @@
+[
+  {
+    "name": "SourceForge",
+    "url": "https://sourceforge.net/create",
+    "status": "no_form",
+    "notes": "DR 92",
+    "http_status": 403,
+    "final_url": "https://sourceforge.net/create",
+    "page_size": 5615
+  },
+  {
+    "name": "AlternativeTo",
+    "url": "https://alternativeto.net/manage-item",
+    "status": "no_form",
+    "notes": "DR 80",
+    "http_status": 403,
+    "final_url": "https://alternativeto.net/manage-item",
+    "page_size": 5611
+  },
+  {
+    "name": "AppSumo",
+    "url": "https://appsumo.com/",
+    "status": "has_form",
+    "notes": "DR 82",
+    "http_status": 200,
+    "final_url": "https://appsumo.com/",
+    "page_size": 277960
+  },
+  {
+    "name": "SoftwareSuggest",
+    "url": "https://www.softwaresuggest.com/artificial-intelligence-software",
+    "status": "has_form",
+    "notes": "DR 77",
+    "http_status": 200,
+    "final_url": "https://www.softwaresuggest.com/artificial-intelligence-software",
+    "page_size": 543261
+  },
+  {
+    "name": "Alternative.me",
+    "url": "https://alternative.me/how-to/submit-software/",
+    "status": "has_form",
+    "notes": "DR 77",
+    "http_status": 200,
+    "final_url": "https://alternative.me/how-to/submit-software/",
+    "page_size": 8626
+  },
+  {
+    "name": "Stackshare",
+    "url": "https://stackshare.io/submit",
+    "status": "no_form",
+    "notes": "DR 79",
+    "http_status": 429,
+    "final_url": "https://stackshare.io/submit",
+    "page_size": 31031
+  },
+  {
+    "name": "SaaSHub",
+    "url": "https://www.saashub.com/submit",
+    "status": "has_form",
+    "notes": "DR 68",
+    "http_status": 200,
+    "final_url": "https://www.saashub.com/submit",
+    "page_size": 112071
+  },
+  {
+    "name": "SideProjectors",
+    "url": "https://www.sideprojectors.com",
+    "status": "no_form",
+    "notes": "DR 67",
+    "http_status": 403,
+    "final_url": "https://www.sideprojectors.com/",
+    "page_size": 5498
+  },
+  {
+    "name": "StartupStash",
+    "url": "https://startupstash.com/add-listing/",
+    "status": "has_form",
+    "notes": "DR 65",
+    "http_status": 200,
+    "final_url": "https://startupstash.com/add-listing/",
+    "page_size": 76398
+  },
+  {
+    "name": "PitchWall",
+    "url": "https://pitchwall.co/product/submit",
+    "status": "needs_login",
+    "notes": "DR 64",
+    "http_status": 200,
+    "final_url": "https://pitchwall.co/auth/login?redirect=/product/submit"
+  },
+  {
+    "name": "Woi AI",
+    "url": "https://woy.ai/submit",
+    "status": "no_form",
+    "notes": "DR 64",
+    "http_status": 200,
+    "final_url": "https://woy.ai/submit",
+    "page_size": 18431
+  },
+  {
+    "name": "Whatsthebigdata",
+    "url": "https://whatsthebigdata.com/submit-new-ai-tool",
+    "status": "has_form",
+    "notes": "DR 60",
+    "http_status": 200,
+    "final_url": "https://whatsthebigdata.com/submit-new-ai-tool/",
+    "page_size": 53346
+  },
+  {
+    "name": "KitPloit",
+    "url": "https://www.kitploit.com/p/submit-tool.html",
+    "status": "no_form",
+    "notes": "DR 57",
+    "http_status": 200,
+    "final_url": "https://kitploit.com/p/submit-tool.html/",
+    "page_size": 5127
+  },
+  {
+    "name": "Tekpon",
+    "url": "https://tekpon.com/get-listed",
+    "status": "has_form",
+    "notes": "DR 54",
+    "http_status": 200,
+    "final_url": "https://tekpon.com/get-listed/",
+    "page_size": 284696
+  },
+  {
+    "name": "Launching Next",
+    "url": "https://www.launchingnext.com/submit/",
+    "status": "has_form",
+    "notes": "DR 51",
+    "http_status": 403,
+    "final_url": "https://www.launchingnext.com/submit/",
+    "page_size": 5518
+  },
+  {
+    "name": "Tool Directory",
+    "url": "https://tooldirectory.ai/submit-tool",
+    "status": "has_form",
+    "notes": "DR 50",
+    "http_status": 200,
+    "final_url": "https://tooldirectory.ai/submit-tool",
+    "page_size": 67258
+  },
+  {
+    "name": "Getlatka",
+    "url": "https://getlatka.com/saas-companies",
+    "status": "has_form",
+    "notes": "DR 71",
+    "http_status": 200,
+    "final_url": "https://getlatka.com/saas-companies",
+    "page_size": 142328
+  },
+  {
+    "name": "Crozdesk",
+    "url": "https://vendor.softwareselect.com/",
+    "status": "no_form",
+    "notes": "DR 74",
+    "http_status": 200,
+    "final_url": "https://vendor.revleads.com/",
+    "page_size": 13522
+  },
+  {
+    "name": "Beta List",
+    "url": "https://betalist.com/submissions/new",
+    "status": "no_form",
+    "notes": "DR 70",
+    "http_status": 403,
+    "final_url": "https://betalist.com/submissions/new",
+    "page_size": 5639
+  },
+  {
+    "name": "Product Hunt",
+    "url": "https://www.producthunt.com/posts/new",
+    "status": "no_form",
+    "notes": "DR 75",
+    "http_status": 403,
+    "final_url": "https://www.producthunt.com/posts/new",
+    "page_size": 5628
+  },
+  {
+    "name": "AI Tools Neil Patel",
+    "url": "https://aitools.neilpatel.com/submit",
+    "status": "has_form",
+    "notes": "DR 91",
+    "http_status": 403,
+    "final_url": "https://aitools.neilpatel.com/submit/",
+    "page_size": 5603
+  },
+  {
+    "name": "Aura++",
+    "url": "https://auraplusplus.com/",
+    "status": "has_form",
+    "notes": "DR 62",
+    "http_status": 200,
+    "final_url": "https://auraplusplus.com/",
+    "page_size": 922117
+  },
+  {
+    "name": "IndieHunt",
+    "url": "https://indiehunt.io/",
+    "status": "has_form",
+    "notes": "DR 32",
+    "http_status": 200,
+    "final_url": "https://indiehunt.io/",
+    "page_size": 611738
+  },
+  {
+    "name": "EarlyHunt",
+    "url": "https://earlyhunt.com/",
+    "status": "has_form",
+    "notes": "DR 25",
+    "http_status": 200,
+    "final_url": "https://earlyhunt.com/",
+    "page_size": 559311
+  },
+  {
+    "name": "Uno Directory",
+    "url": "https://uno.directory/",
+    "status": "has_form",
+    "notes": "DR 45",
+    "http_status": 200,
+    "final_url": "https://uno.directory/",
+    "page_size": 230124
+  },
+  {
+    "name": "1000 Tools",
+    "url": "https://1000.tools/my/tools/create",
+    "status": "has_form",
+    "notes": "DR 23",
+    "http_status": 200,
+    "final_url": "https://1000.tools/signup",
+    "page_size": 24453
+  },
+  {
+    "name": "AI Center",
+    "url": "https://aicenter.ai/products/submit",
+    "status": "has_form",
+    "notes": "DR 10",
+    "http_status": 404,
+    "final_url": "https://aicenter.ai/tools/submit",
+    "page_size": 23208
+  },
+  {
+    "name": "AI Depot",
+    "url": "https://aidepot.co",
+    "status": "has_form",
+    "notes": "DR 11",
+    "http_status": 200,
+    "final_url": "https://aidepot.co/",
+    "page_size": 101821
+  },
+  {
+    "name": "AI Directory",
+    "url": "https://www.aidirectory.org/user-submit/",
+    "status": "has_form",
+    "notes": "DR 10",
+    "http_status": 200,
+    "final_url": "https://www.aidirectory.org/user-submit/",
+    "page_size": 72219
+  },
+  {
+    "name": "AI Dude Info",
+    "url": "https://www.aiwizard.ai/submit",
+    "status": "has_form",
+    "notes": "DR 13",
+    "http_status": 200,
+    "final_url": "https://www.aiwizard.ai/submit",
+    "page_size": 23234
+  },
+  {
+    "name": "AI Hunter",
+    "url": "https://ai-hunter.io/submit-ai-tool/",
+    "status": "has_form",
+    "notes": "DR 10",
+    "http_status": 200,
+    "final_url": "https://ai-hunter.io/submit-ai-tool/",
+    "page_size": 11789
+  },
+  {
+    "name": "AI Lib",
+    "url": "https://ailib.ru/",
+    "status": "has_form",
+    "notes": "DR 23",
+    "http_status": 200,
+    "final_url": "https://ailib.ru/",
+    "page_size": 847590
+  },
+  {
+    "name": "AI Library",
+    "url": "https://library.phygital.plus/tool-submission",
+    "status": "has_form",
+    "notes": "DR 17",
+    "http_status": 200,
+    "final_url": "https://library.phygital.plus/tool-submission",
+    "page_size": 106225
+  },
+  {
+    "name": "AI Marketing",
+    "url": "https://aimarketing.directory/submit",
+    "status": "has_form",
+    "notes": "DR 12",
+    "http_status": 200,
+    "final_url": "https://www.aimarketing.directory/submit",
+    "page_size": 237005
+  },
+  {
+    "name": "AI Search",
+    "url": "https://ai-search.io/submit",
+    "status": "no_form",
+    "notes": "DR 10",
+    "http_status": 429,
+    "final_url": "https://ai-search.io/submit",
+    "page_size": 31032
+  },
+  {
+    "name": "AI To Grow",
+    "url": "https://aitogrow.com/#send-your-tool",
+    "status": "has_form",
+    "notes": "DR 15",
+    "http_status": 200,
+    "final_url": "https://aitogrow.com/#send-your-tool",
+    "page_size": 11813
+  },
+  {
+    "name": "AI Tool Board",
+    "url": "https://aitoolboard.com/submit-ai-tool",
+    "status": "has_form",
+    "notes": "DR 3",
+    "http_status": 200,
+    "final_url": "https://aitoolboard.com/submit",
+    "page_size": 35602
+  },
+  {
+    "name": "AI Tool guru",
+    "url": "https://aitoolguru.com/submit-ai-tool",
+    "status": "needs_login",
+    "notes": "DR 31",
+    "http_status": 200,
+    "final_url": "https://aitoolguru.com/login"
+  },
+  {
+    "name": "AI tool hunt",
+    "url": "https://www.aitoolhunt.com/addTool",
+    "status": "no_form",
+    "notes": "DR 22",
+    "http_status": 404,
+    "final_url": "https://www.aitoolhunt.com/addTool",
+    "page_size": 1753
+  },
+  {
+    "name": "AI Tool NET",
+    "url": "https://www.aitoolnet.com/",
+    "status": "has_form",
+    "notes": "DR 35",
+    "http_status": 403,
+    "final_url": "https://www.aitoolnet.com/",
+    "page_size": 5578
+  },
+  {
+    "name": "AI Tools Arena",
+    "url": "https://aitoolsarena.com/",
+    "status": "has_form",
+    "notes": "DR 8",
+    "http_status": 200,
+    "final_url": "https://aitoolsarena.com/",
+    "page_size": 269250
+  },
+  {
+    "name": "AI tools directory COM",
+    "url": "https://aitoolsdirectory.com/submit-tool",
+    "status": "no_form",
+    "notes": "DR 10",
+    "http_status": 200,
+    "final_url": "https://aitoolsdirectory.com/submit-tool",
+    "page_size": 1661
+  },
+  {
+    "name": "AI Tools Guide",
+    "url": "https://aitoolsguide.com/contact/",
+    "status": "has_form",
+    "notes": "DR 10",
+    "http_status": 200,
+    "final_url": "https://aitoolsguide.com/contact",
+    "page_size": 35364
+  },
+  {
+    "name": "AI Tools Wiki",
+    "url": "https://aitoolswiki.com/contact-us/",
+    "status": "has_form",
+    "notes": "DR 10",
+    "http_status": 200,
+    "final_url": "https://aitoolswiki.com/contact-us",
+    "page_size": 25023
+  },
+  {
+    "name": "AI trendz",
+    "url": "https://aitrendz.xyz/submit-ai-link",
+    "status": "has_form",
+    "notes": "DR 8",
+    "http_status": 200,
+    "final_url": "https://aitrendz.xyz/submit-ai-link/",
+    "page_size": 212608
+  },
+  {
+    "name": "AI Valley",
+    "url": "https://aivalley.ai/submit-tool",
+    "status": "has_form",
+    "notes": "DR 25",
+    "http_status": 200,
+    "final_url": "https://aivalley.ai/submit-tool/",
+    "page_size": 109318
+  },
+  {
+    "name": "AI Wizard",
+    "url": "https://www.aiwizard.ai/submit",
+    "status": "has_form",
+    "notes": "DR 10",
+    "http_status": 200,
+    "final_url": "https://www.aiwizard.ai/submit",
+    "page_size": 23234
+  },
+  {
+    "name": "AIX Collection",
+    "url": "https://aixcollection.com/submit",
+    "status": "has_form",
+    "notes": "DR 10",
+    "http_status": 200,
+    "final_url": "https://aixcollection.com/submit",
+    "page_size": 21963
+  },
+  {
+    "name": "Aixploria",
+    "url": "https://www.aixploria.com/en/add-ai",
+    "status": "no_form",
+    "notes": "DR 17",
+    "http_status": 403,
+    "final_url": "https://www.aixploria.com/en/add-ai",
+    "page_size": 5520
+  },
+  {
+    "name": "All things AI",
+    "url": "https://allthingsai.com/submit",
+    "status": "error",
+    "notes": "DR 27",
+    "error": "HTTPSConnectionPool(host='allthingsai.com', port=443): Max retries exceeded with url: /submit (Caused by SSLError(SSLEOFError(8, 'EOF occurred in violation of protocol (_ssl.c:997)')))"
+  },
+  {
+    "name": "Alternatives.co",
+    "url": "https://alternatives.co/software/ai-tools/",
+    "status": "error",
+    "notes": "DR 12",
+    "error": "HTTPSConnectionPool(host='alternatives.co', port=443): Max retries exceeded with url: /software/ai-tools/ (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:997)')))"
+  },
+  {
+    "name": "AlterOpen",
+    "url": "https://github.com/alteropen-com/alteropen/tree/main/content/app",
+    "status": "has_form",
+    "notes": "DR 0",
+    "http_status": 404,
+    "final_url": "https://github.com/alteropen-com/alteropen/tree/main/content/app",
+    "page_size": 223086
+  },
+  {
+    "name": "Anyfp",
+    "url": "https://anyfp.com/contact",
+    "status": "has_form",
+    "notes": "DR 33",
+    "http_status": 200,
+    "final_url": "https://anyfp.com/contact/",
+    "page_size": 77531
+  },
+  {
+    "name": "Appscriber",
+    "url": "https://appscribed.com/product-list",
+    "status": "has_form",
+    "notes": "DR 34",
+    "http_status": 200,
+    "final_url": "https://appscribed.com/product-list/",
+    "page_size": 168159
+  },
+  {
+    "name": "AppsHunter",
+    "url": "https://appsthunder.com/submit-your-app",
+    "status": "has_form",
+    "notes": "DR 29",
+    "http_status": 200,
+    "final_url": "https://appsthunder.com/submit-your-app/",
+    "page_size": 70409
+  },
+  {
+    "name": "Best AI To",
+    "url": "https://bestaito.com/submit-a-ai-tool",
+    "status": "has_form",
+    "notes": "DR 12",
+    "http_status": 200,
+    "final_url": "https://bestaito.com/submit-a-ai-tool/",
+    "page_size": 50531
+  },
+  {
+    "name": "Best AI Tools",
+    "url": "https://www.startupaitools.com/",
+    "status": "has_form",
+    "notes": "DR 10",
+    "http_status": 200,
+    "final_url": "https://www.startupaitools.com/",
+    "page_size": 271482
+  },
+  {
+    "name": "BroUseAI",
+    "url": "https://www.brouseai.com",
+    "status": "has_form",
+    "notes": "DR 35",
+    "http_status": 200,
+    "final_url": "https://www.brouseai.com/",
+    "page_size": 231225
+  },
+  {
+    "name": "Buffer Apps",
+    "url": "https://www.bufferapps.com/beta-listing/new",
+    "status": "has_form",
+    "notes": "DR 11",
+    "http_status": 200,
+    "final_url": "https://www.bufferapps.com/beta-listing/new",
+    "page_size": 49820
+  },
+  {
+    "name": "ChatGPT demo",
+    "url": "https://chatgptdemo.com/submit-a-product/",
+    "status": "has_form",
+    "notes": "DR 30",
+    "http_status": 200,
+    "final_url": "https://chatgptdemo.com/submit-a-product/",
+    "page_size": 11954
+  },
+  {
+    "name": "Dang AI",
+    "url": "https://dang.ai",
+    "status": "has_form",
+    "notes": "DR 45",
+    "http_status": 200,
+    "final_url": "https://dang.ai/",
+    "page_size": 725974
+  },
+  {
+    "name": "Dev Pages",
+    "url": "https://www.devpages.io/submit-a-tool",
+    "status": "has_form",
+    "notes": "DR 10",
+    "http_status": 200,
+    "final_url": "https://devpages.io/submit-a-tool",
+    "page_size": 40818
+  },
+  {
+    "name": "DevPost",
+    "url": "https://devpost.com/software/new",
+    "status": "needs_login",
+    "notes": "DR 86",
+    "http_status": 200,
+    "final_url": "https://devpost.com/users/login"
+  },
+  {
+    "name": "DigiproToolz",
+    "url": "https://digiprotoolz.com/contact-us/",
+    "status": "has_form",
+    "notes": "DR 10",
+    "http_status": 200,
+    "final_url": "https://expireddomains.com/domain/digiprotoolz.com",
+    "page_size": 95936
+  },
+  {
+    "name": "Dokey AI",
+    "url": "https://dokeyai.com/submit?ref=aidirectori.es",
+    "status": "has_form",
+    "notes": "DR 37",
+    "http_status": 200,
+    "final_url": "https://dokeyai.com/submit?ref=aidirectori.es",
+    "page_size": 91497
+  },
+  {
+    "name": "DoMore",
+    "url": "https://domore.ai/contact-us",
+    "status": "no_form",
+    "notes": "DR 5",
+    "http_status": 403,
+    "final_url": "https://domore.ai/contact-us",
+    "page_size": 5493
+  },
+  {
+    "name": "Easy Save AI",
+    "url": "https://easysaveai.com/submit-your-ai-tool/",
+    "status": "has_form",
+    "notes": "DR 7",
+    "http_status": 200,
+    "final_url": "https://easysaveai.com/pages/submit-your-ai-tool",
+    "page_size": 43990
+  },
+  {
+    "name": "Easy with AI",
+    "url": "https://easywithai.com/submit-tool/",
+    "status": "has_form",
+    "notes": "DR 33",
+    "http_status": 403,
+    "final_url": "https://easywithai.com/submit-tool/",
+    "page_size": 5753
+  },
+  {
+    "name": "Educator Tools",
+    "url": "https://aieducator.tools",
+    "status": "has_form",
+    "notes": "DR 25",
+    "http_status": 200,
+    "final_url": "https://aieducator.tools/",
+    "page_size": 5111
+  },
+  {
+    "name": "Faind AI",
+    "url": "https://faind.ai/submit-a-tool",
+    "status": "no_form",
+    "notes": "DR 10",
+    "http_status": 200,
+    "final_url": "https://faind.ai/submit-a-tool",
+    "page_size": 114
+  },
+  {
+    "name": "Favird",
+    "url": "https://favird.com",
+    "status": "no_form",
+    "notes": "DR 26",
+    "http_status": 200,
+    "final_url": "https://favird.com/",
+    "page_size": 4557
+  },
+  {
+    "name": "Fazier",
+    "url": "https://fazier.com/submit",
+    "status": "has_form",
+    "notes": "DR 5",
+    "http_status": 200,
+    "final_url": "https://fazier.com/submit",
+    "page_size": 36801
+  },
+  {
+    "name": "FinancesOnline",
+    "url": "https://financesonline.com/add-product",
+    "status": "has_form",
+    "notes": "DR 87",
+    "http_status": 200,
+    "final_url": "https://financesonline.com/add-product",
+    "page_size": 140333
+  },
+  {
+    "name": "Find Cool Tools",
+    "url": "https://findcool.tools",
+    "status": "no_form",
+    "notes": "DR 10",
+    "http_status": 200,
+    "final_url": "https://findcool.tools/",
+    "page_size": 16586
+  },
+  {
+    "name": "Find My AI Tool",
+    "url": "https://findmyaitool.com/submit-tool",
+    "status": "has_form",
+    "notes": "DR 36",
+    "http_status": 200,
+    "final_url": "https://findmyaitool.com/submit-tool",
+    "page_size": 56970
+  },
+  {
+    "name": "First 100 users",
+    "url": "https://www.first100users.com/submit",
+    "status": "has_form",
+    "notes": "DR 18",
+    "http_status": 200,
+    "final_url": "https://www.first100users.com/submit",
+    "page_size": 109127
+  },
+  {
+    "name": "Flip Bytes",
+    "url": "https://www.flipbytes.com",
+    "status": "no_form",
+    "notes": "DR 10",
+    "http_status": 202,
+    "final_url": "https://www.flipbytes.com/",
+    "page_size": 167
+  },
+  {
+    "name": "Free AI Apps",
+    "url": "https://freeappsai.com/add",
+    "status": "no_form",
+    "notes": "DR 1.5",
+    "http_status": 202,
+    "final_url": "https://freeappsai.com/add",
+    "page_size": 170
+  },
+  {
+    "name": "Free AI Tools Directory",
+    "url": "https://free-ai-tools-directory.com/submit-request",
+    "status": "has_form",
+    "notes": "DR 11",
+    "http_status": 200,
+    "final_url": "https://free-ai-tools-directory.com/submit-request/",
+    "page_size": 55928
+  },
+  {
+    "name": "Future AGI tools",
+    "url": "https://www.futureagitools.com/submit-a-site",
+    "status": "no_form",
+    "notes": "DR 10",
+    "http_status": 404,
+    "final_url": "https://www.futureagitools.com/submit-a-site",
+    "page_size": 788
+  },
+  {
+    "name": "Future Tools",
+    "url": "https://www.futuretools.io/submit-a-tool",
+    "status": "has_form",
+    "notes": "DR 44",
+    "http_status": 200,
+    "final_url": "https://futuretools.io/submit-a-tool",
+    "page_size": 44430
+  },
+  {
+    "name": "Gate2AI",
+    "url": "https://www.gate2ai.com/submit-tool",
+    "status": "has_form",
+    "notes": "DR 27",
+    "http_status": 200,
+    "final_url": "https://www.gate2ai.com/submit-tool",
+    "page_size": 4604
+  },
+  {
+    "name": "Good AI Tools",
+    "url": "https://goodaitools.com/submit",
+    "status": "has_form",
+    "notes": "DR 0",
+    "http_status": 200,
+    "final_url": "https://goodaitools.com/submit",
+    "page_size": 21279
+  },
+  {
+    "name": "GPT Academy",
+    "url": "https://www.gptacademy.co/submit",
+    "status": "has_form",
+    "notes": "DR 14",
+    "http_status": 200,
+    "final_url": "https://www.gptacademy.co/submit",
+    "page_size": 78210
+  },
+  {
+    "name": "Gpt Forge",
+    "url": "https://gptforge.net",
+    "status": "no_form",
+    "notes": "DR 14",
+    "http_status": 200,
+    "final_url": "https://gptforge.net/",
+    "page_size": 1296
+  },
+  {
+    "name": "GPT Stack",
+    "url": "https://www.gpt-stack.com/add-resource",
+    "status": "error",
+    "notes": "DR 10",
+    "error": "HTTPSConnectionPool(host='www.gpt-stack.com', port=443): Max retries exceeded with url: /add-resource (Caused by SSLError(SSLEOFError(8, 'EOF occurred in violation of protocol (_ssl.c:997)')))"
+  },
+  {
+    "name": "GPTE",
+    "url": "https://gpte.ai/submit-a-tool",
+    "status": "has_form",
+    "notes": "DR 31",
+    "http_status": 200,
+    "final_url": "https://gpte.ai/submit-a-tool",
+    "page_size": 4578
+  },
+  {
+    "name": "GPTs Hunter",
+    "url": "https://www.gptshunter.com/submit-gpt",
+    "status": "has_form",
+    "notes": "DR 59",
+    "http_status": 403,
+    "final_url": "https://www.gptshunter.com/submit-gpt",
+    "page_size": 5524
+  },
+  {
+    "name": "Hacker News",
+    "url": "https://news.ycombinator.com/submit",
+    "status": "has_form",
+    "notes": "DR 44",
+    "http_status": 200,
+    "final_url": "https://news.ycombinator.com/submit",
+    "page_size": 1055
+  },
+  {
+    "name": "Igniter",
+    "url": "https://www.igniter.ai/",
+    "status": "has_form",
+    "notes": "DR 7",
+    "http_status": 200,
+    "final_url": "https://www.igniter.ai/",
+    "page_size": 23109
+  },
+  {
+    "name": "iLib",
+    "url": "https://www.ilib.com/dashboard/submissions/new",
+    "status": "no_form",
+    "notes": "DR 16",
+    "http_status": 503,
+    "final_url": "https://www.ilib.com/dashboard/submissions/new",
+    "page_size": 20
+  },
+  {
+    "name": "Insanely Cool Tools",
+    "url": "https://www.insanelycooltools.com",
+    "status": "no_form",
+    "notes": "DR 35",
+    "http_status": 200,
+    "final_url": "https://www.insanelycooltools.com/",
+    "page_size": 114
+  },
+  {
+    "name": "Insidr AI",
+    "url": "https://www.insidr.ai/submit-tools/",
+    "status": "has_form",
+    "notes": "DR 40",
+    "http_status": 200,
+    "final_url": "https://www.insidr.ai/submit-tools/",
+    "page_size": 1364789
+  },
+  {
+    "name": "Instant",
+    "url": "https://instantai.io/submit-listing/",
+    "status": "no_form",
+    "notes": "DR 1.3",
+    "http_status": 200,
+    "final_url": "https://instantai.io/submit-listing/",
+    "page_size": 1097
+  },
+  {
+    "name": "Invent List",
+    "url": "https://inventlist.com/sites/new",
+    "status": "has_form",
+    "notes": "DR 2.5",
+    "http_status": 200,
+    "final_url": "https://inventlist.com/users/sign_in",
+    "page_size": 108640
+  },
+  {
+    "name": "Ismailblogger",
+    "url": "https://ismailblogger.com/submit-tools",
+    "status": "no_form",
+    "notes": "DR 46",
+    "http_status": 200,
+    "final_url": "https://ismailblogger.com/submit-tools",
+    "page_size": 1565
+  },
+  {
+    "name": "Joinly",
+    "url": "https://www.joinly.xyz/submit-startup",
+    "status": "has_form",
+    "notes": "DR 25",
+    "http_status": 200,
+    "final_url": "https://www.joinly.xyz/submit-startup",
+    "page_size": 43884
+  },
+  {
+    "name": "Lachief",
+    "url": "https://www.lachief.io/",
+    "status": "has_form",
+    "notes": "DR 23",
+    "http_status": 200,
+    "final_url": "https://www.lachief.io/",
+    "page_size": 26767
+  },
+  {
+    "name": "Launched",
+    "url": "https://launched.io/SubmitStartup",
+    "status": "has_form",
+    "notes": "DR 38",
+    "http_status": 200,
+    "final_url": "https://launched.io/SubmitStartup",
+    "page_size": 6956
+  },
+  {
+    "name": "Launched Site",
+    "url": "https://launched.site/submit",
+    "status": "has_form",
+    "notes": "DR 45",
+    "http_status": 200,
+    "final_url": "https://launched.site/submit",
+    "page_size": 345890
+  },
+  {
+    "name": "Live Apps",
+    "url": "https://liveapps.ai/become-a-partner",
+    "status": "error",
+    "notes": "DR 12",
+    "error": "HTTPSConnectionPool(host='liveapps.ai', port=443): Max retries exceeded with url: /become-a-partner (Caused by SSLError(SSLCertVerificationError(1, \"[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: Hostname mismatch, certificate is not valid for 'liveapps.ai'. (_ssl.c:997)\")))"
+  },
+  {
+    "name": "Look AI Tools",
+    "url": "https://lookaitools.com/submission-service",
+    "status": "has_form",
+    "notes": "DR 6",
+    "http_status": 404,
+    "final_url": "https://lookaitools.com/submission-service",
+    "page_size": 102592
+  },
+  {
+    "name": "MadGenius",
+    "url": "https://madgenius.co/submit",
+    "status": "no_form",
+    "notes": "DR 10",
+    "http_status": 200,
+    "final_url": "https://madgenius.co/submit",
+    "page_size": 9161
+  },
+  {
+    "name": "Mars AI directory",
+    "url": "https://www.marsx.dev/ai-startups",
+    "status": "has_form",
+    "notes": "DR 30",
+    "http_status": 200,
+    "final_url": "https://marsx.dev/ai-startups/",
+    "page_size": 160844
+  },
+  {
+    "name": "MicroLaunch",
+    "url": "https://microlaunch.net",
+    "status": "has_form",
+    "notes": "DR 2",
+    "http_status": 200,
+    "final_url": "https://microlaunch.net/",
+    "page_size": 2326526
+  },
+  {
+    "name": "MicroStartups",
+    "url": "https://www.microstartups.co/list-your-startup",
+    "status": "has_form",
+    "notes": "DR 3.1",
+    "http_status": 200,
+    "final_url": "https://www.microstartups.co/list-your-startup",
+    "page_size": 11881
+  },
+  {
+    "name": "Next Gen Tools",
+    "url": "https://nextgentools.me/submit-your-tool",
+    "status": "has_form",
+    "notes": "DR 27",
+    "http_status": 200,
+    "final_url": "https://nextgentools.me/submit-your-tool",
+    "page_size": 65934
+  },
+  {
+    "name": "NextGenTool",
+    "url": "https://nextgentool.io/submit",
+    "status": "no_form",
+    "notes": "DR 12",
+    "http_status": 200,
+    "final_url": "https://nextgentool.io/submit",
+    "page_size": 1078
+  },
+  {
+    "name": "Nextpedia",
+    "url": "https://www.nextpedia.io/submit-tool",
+    "status": "has_form",
+    "notes": "DR 11",
+    "http_status": 200,
+    "final_url": "https://www.nextpedia.io/submit-tool",
+    "page_size": 12326
+  },
+  {
+    "name": "One Hub AI",
+    "url": "https://www.onehubai.com/",
+    "status": "has_form",
+    "notes": "DR 10",
+    "http_status": 200,
+    "final_url": "https://www.onehubai.com/",
+    "page_size": 78525
+  },
+  {
+    "name": "Open Future",
+    "url": "https://openfuture.ai/submit-tool",
+    "status": "has_form",
+    "notes": "DR 31",
+    "http_status": 403,
+    "final_url": "https://openfuture.ai/submit-tool",
+    "page_size": 5522
+  },
+  {
+    "name": "Orbic AI",
+    "url": "https://orbic.ai/submit/tools",
+    "status": "has_form",
+    "notes": "DR 5",
+    "http_status": 200,
+    "final_url": "https://orbic.ai/submit/tools",
+    "page_size": 4597
+  },
+  {
+    "name": "Paggu",
+    "url": "https://www.paggu.com/submit-your-startup/",
+    "status": "has_form",
+    "notes": "DR 35",
+    "http_status": 200,
+    "final_url": "https://www.paggu.com/submit-your-startup/",
+    "page_size": 96765
+  },
+  {
+    "name": "PostMake",
+    "url": "https://postmake.io/",
+    "status": "has_form",
+    "notes": "DR 29",
+    "http_status": 200,
+    "final_url": "https://postmake.io/",
+    "page_size": 29256
+  },
+  {
+    "name": "Productivity Directory",
+    "url": "https://productivity.directory/s/submit",
+    "status": "needs_login",
+    "notes": "DR 27",
+    "http_status": 200,
+    "final_url": "https://productivity.directory/user/signin?return_to=%2Fs%2Fsubmit"
+  },
+  {
+    "name": "PureFuture",
+    "url": "https://purefuture.net/contact/",
+    "status": "error",
+    "notes": "DR 13",
+    "error": "HTTPSConnectionPool(host='purefuture.net', port=443): Max retries exceeded with url: /contact/ (Caused by SSLError(SSLCertVerificationError(1, \"[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: Hostname mismatch, certificate is not valid for 'purefuture.net'. (_ssl.c:997)\")))"
+  },
+  {
+    "name": "Resource fyi",
+    "url": "https://resource.fyi/account/submit",
+    "status": "needs_login",
+    "notes": "DR 39",
+    "http_status": 200,
+    "final_url": "https://resource.fyi/login"
+  },
+  {
+    "name": "Robingood",
+    "url": "https://tools.robingood.com",
+    "status": "has_form",
+    "notes": "DR 33",
+    "http_status": 200,
+    "final_url": "https://tools.robingood.com/",
+    "page_size": 74717
+  },
+  {
+    "name": "Saas AI Tools",
+    "url": "https://saasaitools.com/submit/",
+    "status": "has_form",
+    "notes": "DR 33",
+    "http_status": 200,
+    "final_url": "https://saasaitools.com/join/",
+    "page_size": 110731
+  },
+  {
+    "name": "Saas Po",
+    "url": "https://www.saaspo.com/submit",
+    "status": "has_form",
+    "notes": "DR 29",
+    "http_status": 403,
+    "final_url": "https://saaspo.com/submit",
+    "page_size": 5463
+  },
+  {
+    "name": "Saas Surf",
+    "url": "https://saassurf.com/submit-a-product",
+    "status": "has_form",
+    "notes": "DR 21",
+    "http_status": 200,
+    "final_url": "https://saassurf.com/submit-a-product",
+    "page_size": 24756
+  },
+  {
+    "name": "SaasBaba",
+    "url": "https://saasbaba.com/add-ai-tool/",
+    "status": "has_form",
+    "notes": "DR 10",
+    "http_status": 200,
+    "final_url": "https://saasbaba.com/add-ai-tool/",
+    "page_size": 12453
+  },
+  {
+    "name": "SaasWorthy",
+    "url": "https://www.saasworthy.com",
+    "status": "no_form",
+    "notes": "DR 72",
+    "http_status": 403,
+    "final_url": "https://www.saasworthy.com/",
+    "page_size": 5608
+  },
+  {
+    "name": "Sick Tools",
+    "url": "https://www.sick.tools/",
+    "status": "has_form",
+    "notes": "DR 0",
+    "http_status": 200,
+    "final_url": "https://sick.tools/",
+    "page_size": 23304
+  },
+  {
+    "name": "Sidebar",
+    "url": "https://sidebar.io/submit",
+    "status": "has_form",
+    "notes": "DR 71",
+    "http_status": 200,
+    "final_url": "https://sidebar.io/submit",
+    "page_size": 16839
+  },
+  {
+    "name": "Sitelike",
+    "url": "https://www.sitelike.org/add-site",
+    "status": "no_form",
+    "notes": "DR 70",
+    "http_status": 403,
+    "final_url": "https://www.sitelike.org/add-site",
+    "page_size": 5516
+  },
+  {
+    "name": "Smart Tools",
+    "url": "https://www.smart-tools.ai/en/submit",
+    "status": "has_form",
+    "notes": "DR 11",
+    "http_status": 200,
+    "final_url": "https://www.smart-tools.ai/en/submit",
+    "page_size": 72100
+  },
+  {
+    "name": "Software World",
+    "url": "https://softwareworld.co/get-listed/",
+    "status": "no_form",
+    "notes": "DR 75",
+    "http_status": 403,
+    "final_url": "https://www.softwareworld.co/get-listed/",
+    "page_size": 5635
+  },
+  {
+    "name": "Source Forge",
+    "url": "https://sourceforge.net/create",
+    "status": "no_form",
+    "notes": "DR 92",
+    "http_status": 403,
+    "final_url": "https://sourceforge.net/create",
+    "page_size": 5615
+  },
+  {
+    "name": "spsFeed",
+    "url": "https://spsfeed.com/",
+    "status": "error",
+    "notes": "DR 0",
+    "error": "HTTPSConnectionPool(host='spsfeed.com', port=443): Max retries exceeded with url: / (Caused by SSLError(SSLEOFError(8, 'EOF occurred in violation of protocol (_ssl.c:997)')))"
+  },
+  {
+    "name": "Stackshare",
+    "url": "https://stackshare.io/submit",
+    "status": "no_form",
+    "notes": "DR 79",
+    "http_status": 429,
+    "final_url": "https://stackshare.io/submit",
+    "page_size": 31042
+  },
+  {
+    "name": "Startup AI Tools",
+    "url": "https://www.startups.fyi/",
+    "status": "has_form",
+    "notes": "DR 22",
+    "http_status": 200,
+    "final_url": "https://www.startups.fyi/",
+    "page_size": 90578
+  },
+  {
+    "name": "Startup Base",
+    "url": "https://startupbase.io/submissions/start",
+    "status": "needs_login",
+    "notes": "DR 50",
+    "http_status": 200,
+    "final_url": "https://startupbase.io/login?expired&origin=%2Fsubmissions%2Fstart"
+  },
+  {
+    "name": "Startup Buffer",
+    "url": "https://startupbuffer.com/site/submit",
+    "status": "has_form",
+    "notes": "DR 36",
+    "http_status": 403,
+    "final_url": "https://startupbuffer.com/site/submit",
+    "page_size": 5526
+  },
+  {
+    "name": "Startup Collections",
+    "url": "https://startupcollections.com/submit-product",
+    "status": "has_form",
+    "notes": "DR 22",
+    "http_status": 200,
+    "final_url": "https://startupcollections.com/submit-product",
+    "page_size": 11943
+  },
+  {
+    "name": "Startup Pitch",
+    "url": "https://thestartuppitch.com/post-a-pitch/",
+    "status": "error",
+    "notes": "DR 40",
+    "error": "HTTPSConnectionPool(host='thestartuppitch.com', port=443): Max retries exceeded with url: /post-a-pitch/ (Caused by SSLError(SSLCertVerificationError(1, \"[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: Hostname mismatch, certificate is not valid for 'thestartuppitch.com'. (_ssl.c:997)\")))"
+  },
+  {
+    "name": "Startup Ranking",
+    "url": "https://www.startupranking.com/startup/create/url-validation",
+    "status": "no_form",
+    "notes": "DR 67",
+    "http_status": 403,
+    "final_url": "https://www.startupranking.com/startup/create/url-validation",
+    "page_size": 5606
+  },
+  {
+    "name": "Startup Roulette",
+    "url": "https://startuproulette.com/promote-my-startup",
+    "status": "error",
+    "notes": "DR 21",
+    "error": "HTTPSConnectionPool(host='startuproulette.com', port=443): Max retries exceeded with url: /promote-my-startup (Caused by SSLError(SSLCertVerificationError(1, \"[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: Hostname mismatch, certificate is not valid for 'startuproulette.com'. (_ssl.c:997)\")))"
+  },
+  {
+    "name": "Startup Stage",
+    "url": "https://startupstage.app/startups/new",
+    "status": "no_form",
+    "notes": "DR 25",
+    "http_status": 404,
+    "final_url": "https://startupstage.app/startups/new",
+    "page_size": 3783
+  },
+  {
+    "name": "Startup Stash",
+    "url": "https://startupstash.com/add-listing/",
+    "status": "has_form",
+    "notes": "DR 65",
+    "http_status": 200,
+    "final_url": "https://startupstash.com/add-listing/",
+    "page_size": 76398
+  },
+  {
+    "name": "Startup88",
+    "url": "https://startup88.com",
+    "status": "has_form",
+    "notes": "DR 25",
+    "http_status": 200,
+    "final_url": "https://startup88.com/",
+    "page_size": 126772
+  },
+  {
+    "name": "Startups.fyi",
+    "url": "https://www.startups.fyi",
+    "status": "has_form",
+    "notes": "DR 25",
+    "http_status": 200,
+    "final_url": "https://www.startups.fyi/",
+    "page_size": 90578
+  },
+  {
+    "name": "Super Tools",
+    "url": "https://supertools.therundown.ai/submit",
+    "status": "has_form",
+    "notes": "DR 20",
+    "http_status": 200,
+    "final_url": "https://www.rundown.ai/submit",
+    "page_size": 51770
+  },
+  {
+    "name": "Synoptica",
+    "url": "https://synoptica.com/submit-an-ai-tool",
+    "status": "no_form",
+    "notes": "DR 17",
+    "http_status": 200,
+    "final_url": "https://synoptica.com/submit-an-ai-tool",
+    "page_size": 114
+  },
+  {
+    "name": "Tekpon",
+    "url": "https://tekpon.com/get-listed",
+    "status": "has_form",
+    "notes": "DR 54",
+    "http_status": 200,
+    "final_url": "https://tekpon.com/get-listed/",
+    "page_size": 284696
+  },
+  {
+    "name": "That AI Collection",
+    "url": "https://www.thatcollection.com/submit/",
+    "status": "no_form",
+    "notes": "DR 32",
+    "http_status": 200,
+    "final_url": "https://www.thatcollection.com/submit/",
+    "page_size": 114
+  },
+  {
+    "name": "The AI Warehouse",
+    "url": "https://inside.thewarehouse.ai/submissions",
+    "status": "has_form",
+    "notes": "DR 11",
+    "http_status": 200,
+    "final_url": "https://inside.thewarehouse.ai/submissions",
+    "page_size": 313334
+  },
+  {
+    "name": "The Hack Stack",
+    "url": "https://thehackstack.com/register",
+    "status": "has_form",
+    "notes": "DR 10",
+    "http_status": 200,
+    "final_url": "https://thehackstack.com/register",
+    "page_size": 29386
+  },
+  {
+    "name": "Tiny Startups",
+    "url": "https://www.tinystartups.co",
+    "status": "has_form",
+    "notes": "DR 4.4",
+    "http_status": 200,
+    "final_url": "https://www.tinystartups.com/",
+    "page_size": 247719
+  },
+  {
+    "name": "TipSeason",
+    "url": "https://tipseason.com/ai-tools/submit",
+    "status": "has_form",
+    "notes": "DR 27",
+    "http_status": 200,
+    "final_url": "https://www.tipseason.com/ai-tools/submit",
+    "page_size": 79824
+  },
+  {
+    "name": "Tool AI",
+    "url": "https://toolai.io/en/submit",
+    "status": "needs_login",
+    "notes": "DR 7",
+    "http_status": 502,
+    "final_url": "http://localhost/SignIn?ReturnUrl=%2Fen%2Fsubmit"
+  },
+  {
+    "name": "Tool Pilot",
+    "url": "https://www.toolpilot.ai/pages/submit-your-ai-tool",
+    "status": "has_form",
+    "notes": "DR 51",
+    "http_status": 200,
+    "final_url": "https://www.toolpilot.ai/pages/submit-your-ai-tool",
+    "page_size": 140673
+  },
+  {
+    "name": "Toolify.ai",
+    "url": "https://www.toolify.ai/login?from=%2Fsubmit",
+    "status": "needs_login",
+    "notes": "DR 13",
+    "http_status": 403,
+    "final_url": "https://www.toolify.ai/login?from=%2Fsubmit"
+  },
+  {
+    "name": "Toolio AI",
+    "url": "https://toolio.ai/submit-a-tool",
+    "status": "has_form",
+    "notes": "DR 34",
+    "http_status": 200,
+    "final_url": "https://www.toolio.ai/submit-a-tool",
+    "page_size": 12460
+  },
+  {
+    "name": "Tools AI",
+    "url": "https://toolsai.net/add-listing/",
+    "status": "error",
+    "notes": "DR 19",
+    "error": "HTTPSConnectionPool(host='toolsai.net', port=443): Max retries exceeded with url: /add-listing/ (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:997)')))"
+  },
+  {
+    "name": "Tools AI Online",
+    "url": "https://www.tools-ai.online/tool-submit",
+    "status": "has_form",
+    "notes": "DR 11",
+    "http_status": 200,
+    "final_url": "https://www.tools-ai.online/submit-tool",
+    "page_size": 62740
+  },
+  {
+    "name": "Tools Directory",
+    "url": "https://aitoolsdirectory.com/submit-tool",
+    "status": "no_form",
+    "notes": "DR 10",
+    "http_status": 200,
+    "final_url": "https://aitoolsdirectory.com/submit-tool",
+    "page_size": 1661
+  },
+  {
+    "name": "Tools Nocode",
+    "url": "https://www.toolsnocode.com/ai#form1",
+    "status": "no_form",
+    "notes": "DR 10",
+    "http_status": 200,
+    "final_url": "https://toolsnocode.com/ai#form1",
+    "page_size": 3674
+  },
+  {
+    "name": "Tools.so",
+    "url": "https://tools.so/",
+    "status": "has_form",
+    "notes": "DR 15",
+    "http_status": 200,
+    "final_url": "https://tools.so/",
+    "page_size": 29748
+  },
+  {
+    "name": "Toolscout",
+    "url": "https://toolscout.ai/submit",
+    "status": "no_form",
+    "notes": "DR 10",
+    "http_status": 200,
+    "final_url": "https://toolscout.ai/submit",
+    "page_size": 17442
+  },
+  {
+    "name": "ToolsFine",
+    "url": "https://toolsfine.com",
+    "status": "has_form",
+    "notes": "DR 38",
+    "http_status": 200,
+    "final_url": "https://toolsfine.com/",
+    "page_size": 78167
+  },
+  {
+    "name": "Toolspedia",
+    "url": "https://www.toolspedia.io/submit-tool/",
+    "status": "has_form",
+    "notes": "DR 21",
+    "http_status": 200,
+    "final_url": "https://toolspedia.io/submit-tool/",
+    "page_size": 245935
+  },
+  {
+    "name": "Top Apps AI",
+    "url": "https://topapps.ai/submit",
+    "status": "no_form",
+    "notes": "DR 32",
+    "http_status": 202,
+    "final_url": "https://topapps.ai/submit",
+    "page_size": 173
+  },
+  {
+    "name": "Under1000MRR.tools",
+    "url": "https://under1000mrr.tools/submit-product",
+    "status": "error",
+    "notes": "DR 0",
+    "error": "HTTPSConnectionPool(host='under1000mrr.tools', port=443): Read timed out. (read timeout=15)"
+  },
+  {
+    "name": "Victrays",
+    "url": "https://victrays.com/submit-tool/",
+    "status": "has_form",
+    "notes": "DR 10",
+    "http_status": 403,
+    "final_url": "https://victrays.com/submit-tool/",
+    "page_size": 5524
+  },
+  {
+    "name": "What the AI",
+    "url": "https://whattheai.tech/submit-a-tool/",
+    "status": "no_form",
+    "notes": "DR 28",
+    "http_status": 404,
+    "final_url": "https://whattheai.tech/submit-a-tool",
+    "page_size": 25061
+  }
+]
