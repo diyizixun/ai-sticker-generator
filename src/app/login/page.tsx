@@ -99,30 +99,32 @@ export default function LoginPage() {
     setError("");
 
     try {
-      const res = await fetch("/api/auth/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, code }),
+      // 调用 NextAuth Credentials provider 完成验证+登录
+      // signIn 成功时会自动跳转，失败时会返回 undefined
+      const result = await signIn("email-otp", {
+        email,
+        code,
+        redirect: false, // 先不自动跳转，手动处理错误
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || "验证失败");
+      if (result?.error) {
+        setError("验证码错误或已过期，请重新获取");
         setLoading(false);
         return;
       }
 
-      // 验证成功，调用 NextAuth 登录
-      // 使用 credentials provider 或自定义逻辑
-      const result = await signIn("email", { 
-        email, 
-        callbackUrl: "/settings" 
-      });
+      if (result?.ok) {
+        // 登录成功，手动跳转到 /settings
+        router.push("/settings");
+        return;
+      }
 
-    } catch {
-      setError("验证失败，请稍后重试");
-    } finally {
+      // 没返回结果，可能是网络错误
+      setError("登录失败，请稍后重试");
+      setLoading(false);
+    } catch (err: any) {
+      console.error("Login error:", err);
+      setError("登录失败，请稍后重试");
       setLoading(false);
     }
   };
