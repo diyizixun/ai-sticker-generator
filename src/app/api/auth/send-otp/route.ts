@@ -115,9 +115,22 @@ export async function POST(request: NextRequest) {
     storeVerificationCode(email, code, 5);
 
     // 发送策略：QQ SMTP 优先 → Resend 备用
+    const hasQQSMTP = !!(process.env.QQ_EMAIL_USER && process.env.QQ_EMAIL_PASS);
+    const hasResend = !!process.env.RESEND_API_KEY;
+
+    if (!hasQQSMTP && !hasResend) {
+      console.error("[Send OTP] No email provider configured!");
+      return NextResponse.json(
+        { error: "邮件服务未配置，请联系管理员配置 QQ_EMAIL_USER/QQ_EMAIL_PASS 或 RESEND_API_KEY" },
+        { status: 500 }
+      );
+    }
+
+    console.log(`[Send OTP] Providers available: QQ_SMTP=${hasQQSMTP}, Resend=${hasResend}`);
+
     const providers = [
-      { name: "QQ SMTP", send: () => sendViaQQSMTP(email, code) },
-      { name: "Resend", send: () => sendViaResend(email, code) },
+      ...(hasQQSMTP ? [{ name: "QQ SMTP", send: () => sendViaQQSMTP(email, code) }] : []),
+      ...(hasResend ? [{ name: "Resend", send: () => sendViaResend(email, code) }] : []),
     ];
 
     let lastError = "";
@@ -151,8 +164,21 @@ export async function POST(request: NextRequest) {
 
     // 所有方式都失败了
     console.error("[Send OTP] All providers failed. Last error:", lastError);
+
+    // 根据错误类型返回更友好的信息
+    let userMessage = "邮件发送失败，请稍后重试";
+    if (lastError.includes("QQ_SMTP_NOT_CONFIGURED")) {
+      userMessage = "邮件服务未配置（QQ SMTP），请联系管理员";
+    } else if (lastError.includes("RESEND_NOT_CONFIGURED")) {
+      userMessage = "邮件服务未配置（Resend），请联系管理员";
+    } else if (lastError.includes("RESEND_ERROR") && lastError.includes("free accounts")) {
+      userMessage = "Resend免费账号仅能发送至已验证邮箱";
+    } else if (lastError.includes("Invalid login") || lastError.includes("auth")) {
+      userMessage = "邮箱SMTP认证失败，请检查配置";
+    }
+
     return NextResponse.json(
-      { error: "邮件发送失败，请稍后重试" },
+      { error: userMessage, debug: lastError },
       { status: 500 }
     );
 
