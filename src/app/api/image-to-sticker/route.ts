@@ -1,5 +1,5 @@
 // /api/image-to-sticker - 图片转贴纸API
-// 接收上传的图片，调用AI服务转换为贴纸风格
+// 接收上传的图片，调用 Replicate Flux 进行 image-to-image 转换
 
 import { NextRequest, NextResponse } from "next/server";
 
@@ -100,50 +100,24 @@ export async function POST(req: NextRequest) {
     const stylePrompt = STYLE_PROMPTS[style] || "sticker design";
     const fullPrompt = `${stylePrompt}, ${prompt}, transform into sticker, white outline, die-cut sticker shape, clean background, vibrant colors, high quality`;
 
-    // 优先使用Replicate（如果配置了）
-    if (process.env.REPLICATE_API_TOKEN) {
-      try {
-        const result = await generateWithReplicate(dataUri, fullPrompt);
-        return NextResponse.json({ success: true, imageUrl: result, source: "replicate" });
-      } catch (e) {
-        console.error("Replicate failed:", e);
-      }
+    // 使用 Replicate Flux 进行 image-to-image 转换
+    if (!process.env.REPLICATE_API_TOKEN) {
+      console.error("REPLICATE_API_TOKEN not configured");
+      return NextResponse.json(
+        { error: "Image-to-sticker service not configured. Please contact support." },
+        { status: 503 }
+      );
     }
 
-    // Pollinations备选（免费，但image-to-image支持有限）
     try {
-      const encoded = encodeURIComponent(fullPrompt);
-      const seed = Math.floor(Math.random() * 100000);
-      const url = `https://image.pollinations.ai/prompt/${encoded}?width=512&height=512&nologo=true&seed=${seed}`;
-      
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 8000);
-
-      const response = await fetch(url, {
-        signal: controller.signal,
-        headers: { "User-Agent": "AI-Sticker-Generator/1.0" },
-      });
-      clearTimeout(timeout);
-
-      if (!response.ok) {
-        return NextResponse.json({ error: "Generation failed" }, { status: 502 });
-      }
-
-      const contentType = response.headers.get("content-type") || "";
-      if (!contentType.includes("image")) {
-        return NextResponse.json({ error: "Generation failed" }, { status: 502 });
-      }
-
-      const resultBuffer = Buffer.from(await response.arrayBuffer());
-      const resultBase64 = resultBuffer.toString("base64");
-      const dataUrl = `data:${contentType.includes("png") ? "image/png" : "image/jpeg"};base64,${resultBase64}`;
-
-      return NextResponse.json({ success: true, imageUrl: dataUrl, source: "pollinations" });
+      const result = await generateWithReplicate(dataUri, fullPrompt);
+      return NextResponse.json({ success: true, imageUrl: result, source: "replicate" });
     } catch (e: any) {
-      if (e.name === "AbortError") {
-        return NextResponse.json({ error: "Generation timeout" }, { status: 504 });
-      }
-      return NextResponse.json({ error: "Generation failed" }, { status: 500 });
+      console.error("Replicate image-to-sticker failed:", e);
+      return NextResponse.json(
+        { error: "Generation failed. Please try again later." },
+        { status: 502 }
+      );
     }
   } catch (error) {
     console.error("Image to sticker error:", error);
@@ -154,7 +128,7 @@ export async function POST(req: NextRequest) {
 async function generateWithReplicate(imageDataUri: string, prompt: string): Promise<string> {
   const token = process.env.REPLICATE_API_TOKEN!;
   
-  // 使用Flux模型进行image-to-image转换
+  // 使用 Flux 模型进行 image-to-image 转换
   const response = await fetch("https://api.replicate.com/v1/predictions", {
     method: "POST",
     headers: {
