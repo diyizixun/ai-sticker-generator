@@ -1,6 +1,11 @@
+"use client";
+
+import { useState } from "react";
 import { Sparkles, Download, Shield, Zap, Globe, Printer, Crown, Check } from "lucide-react";
+import { useSession, signIn } from "next-auth/react";
 import { PRICING } from "@/lib/config";
 import StickerGenerator from "./StickerGenerator";
+import LoginModal from "./LoginModal";
 
 function AdPlaceholder({ slot }: { slot: string }) {
   const clientId = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID || "ca-pub-8291464992255712";
@@ -43,6 +48,47 @@ const faqs = [
 ];
 
 export default function HomePage() {
+  const { data: session, status } = useSession();
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [loginSuccess, setLoginSuccess] = useState(false);
+  const [pendingAction, setPendingAction] = useState<"monthly" | "yearly" | null>(null);
+
+  const handleLoginSuccess = () => {
+    setLoginOpen(false);
+    // 如果登录前有等待的购买操作，继续
+    if (pendingAction) {
+      const action = pendingAction;
+      setPendingAction(null);
+      setTimeout(() => handleUpgrade(action), 100);
+    } else {
+      window.location.reload();
+    }
+  };
+
+  const handleUpgrade = async (priceType: "monthly" | "yearly") => {
+    if (status === "unauthenticated" || !session?.user) {
+      setPendingAction(priceType);
+      setLoginOpen(true);
+      return;
+    }
+    // 已登录，直接跳转支付
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ priceType }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert(data.error || "Checkout failed");
+      }
+    } catch {
+      alert("Checkout failed. Please try again.");
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen">
       {/* Header */}
@@ -60,11 +106,46 @@ export default function HomePage() {
             <a href="/pricing" className="hover:text-purple-600 transition-colors">Pricing</a>
           </nav>
           <div className="flex items-center gap-3">
-            <a href="/login" className="text-sm font-medium text-gray-600 hover:text-purple-700 transition-colors">Sign In</a>
-            <a href="#generator" className="bg-purple-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors">Get Started</a>
+            {status === "loading" ? (
+              <div className="w-8 h-8 rounded-full bg-gray-200 animate-pulse" />
+            ) : session?.user ? (
+              <button
+                onClick={() => window.location.href = "/settings"}
+                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+              >
+                {session.user.image ? (
+                  <img src={session.user.image} alt="" className="w-8 h-8 rounded-full" />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white text-sm font-medium">
+                    {(session.user.name?.[0] || session.user.email?.[0] || "?").toUpperCase()}
+                  </div>
+                )}
+                <span className="text-sm font-medium text-gray-700 hidden sm:block">
+                  {session.user.name || session.user.email}
+                </span>
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={() => setLoginOpen(true)}
+                  className="text-sm font-medium text-gray-600 hover:text-purple-700 transition-colors"
+                >
+                  Sign In
+                </button>
+                <a href="#generator" className="bg-purple-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors">
+                  Get Started
+                </a>
+              </>
+            )}
           </div>
         </div>
       </header>
+
+      <LoginModal
+        open={loginOpen}
+        onClose={() => setLoginOpen(false)}
+        onSuccess={handleLoginSuccess}
+      />
 
       <main className="flex-1">
         {/* Hero + Generator */}
@@ -155,7 +236,18 @@ export default function HomePage() {
                     <li key={i} className="flex items-center gap-2 text-sm text-gray-700"><Check className="w-4 h-4 text-purple-600 flex-shrink-0" />{f}</li>
                   ))}
                 </ul>
-                <a href="/pricing" className="block w-full py-3 rounded-xl text-center font-semibold text-white bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 transition-all shadow-lg shadow-purple-200">Upgrade to Pro</a>
+                <button
+                  onClick={() => handleUpgrade("monthly")}
+                  className="w-full py-3 rounded-xl text-center font-semibold text-white bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 transition-all shadow-lg shadow-purple-200 mb-2"
+                >
+                  Upgrade to Pro Monthly
+                </button>
+                <button
+                  onClick={() => handleUpgrade("yearly")}
+                  className="w-full py-2.5 rounded-xl text-center font-medium text-purple-600 bg-purple-50 hover:bg-purple-100 transition-colors text-sm"
+                >
+                  Upgrade Yearly (${PRICING.proYearlyPrice})
+                </button>
               </div>
             </div>
             <div className="mt-8 text-center">
