@@ -188,14 +188,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Auth disabled for now - will re-enable after site is stable
     let authUser: any = null;
-    try {
-      const { getCurrentUser } = await import("@/lib/auth/session");
-      authUser = await getCurrentUser();
-    } catch { /* no auth */ }
+    // try {
+    //   const { getCurrentUser } = await import("@/lib/auth/session");
+    //   authUser = await getCurrentUser();
+    // } catch { /* no auth */ }
 
-    // Pro用户优先用Replicate
-    if (authUser?.plan === "pro" && process.env.REPLICATE_API_TOKEN) {
+    // Pro用户优先用Replicate (暂时跳过pro检查)
+    if (process.env.REPLICATE_API_TOKEN) {
       try {
         const stylePrompt = STYLE_PROMPTS[style] || "sticker design";
         const fullPrompt = `${stylePrompt}, ${prompt}, sticker, white outline, die-cut sticker shape, clean background, vibrant colors, high quality`;
