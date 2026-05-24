@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import { GoogleAnalytics, GoogleAdSense } from "@/components/Ads";
 import "./globals.css";
+
+// Temporarily disable Ads components to debug 500 error
+// import { GoogleAnalytics, GoogleAdSense } from "@/components/Ads";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -66,8 +68,10 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} h-full antialiased`}>
       <head>
         <link rel="canonical" href="https://aisticker.pics" />
+        {/* Temporarily disabled for debugging
         <GoogleAnalytics />
         <GoogleAdSense />
+        */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
