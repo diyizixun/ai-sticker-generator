@@ -4,7 +4,14 @@ import { checkAndIncrementQuota, FREE_DAILY_LIMIT } from "@/lib/quota";
 const POLLINATIONS_API_KEY = process.env.POLLINATIONS_API_KEY!;
 
 export async function POST(req: NextRequest) {
-  // Identify user (session email or IP-based cookie)
+  const body = await req.json().catch(() => ({}));
+  const prompt = body.prompt as string | undefined;
+
+  if (!prompt) {
+    return NextResponse.json({ error: "请输入描述" }, { status: 400 });
+  }
+
+  // Identify user (session email or visitor cookie)
   const sessionEmail = req.cookies.get("session")?.value;
   const visitorId = req.cookies.get("visitor_id")?.value;
   
@@ -25,11 +32,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       error: `今日免费次数已用完（${FREE_DAILY_LIMIT}次/天），明天再来吧！`,
     }, { status: 429 });
-  }
-
-  const { prompt } = await req.json();
-  if (!prompt) {
-    return NextResponse.json({ error: "请输入描述" }, { status: 400 });
   }
 
   try {
