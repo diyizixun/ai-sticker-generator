@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
 
     if (insertError) {
       console.error("Insert OTP error:", insertError);
-      return NextResponse.json({ error: "发送验证码失败，请稍后重试" }, { status: 500 });
+      return NextResponse.json({ error: "发送验证码失败", detail: String(e) }, { status: 500 });
     }
 
     // Send email
