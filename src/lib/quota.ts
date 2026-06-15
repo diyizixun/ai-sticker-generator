@@ -1,33 +1,4 @@
-// In-memory OTP store (server-side only, resets on cold start)
-// Key: email, Value: { code, expiresAt }
-const otpStore = new Map<string, { code: string; expiresAt: number }>();
-
-function generateCode(): string {
-  return String(Math.floor(100000 + Math.random() * 900000));
-}
-
-export function createOTP(email: string): string {
-  const code = generateCode();
-  otpStore.set(email.toLowerCase(), {
-    code,
-    expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes
-  });
-  return code;
-}
-
-export function verifyOTP(email: string, code: string): boolean {
-  const record = otpStore.get(email.toLowerCase());
-  if (!record) return false;
-  if (Date.now() > record.expiresAt) {
-    otpStore.delete(email.toLowerCase());
-    return false;
-  }
-  if (record.code !== code) return false;
-  otpStore.delete(email.toLowerCase()); // one-time use
-  return true;
-}
-
-// Quota: free users get 5/day (same as before, per visitor)
+// Quota: free users get 5/day (per visitor)
 const quotaStore = new Map<string, { count: number; date: string }>();
 export const FREE_DAILY_LIMIT = 5;
 
