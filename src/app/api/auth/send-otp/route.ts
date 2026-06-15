@@ -18,45 +18,59 @@ export async function POST(req: NextRequest) {
     const normalized = email.toLowerCase().trim();
 
     // Rate limiting: check last OTP sent within 60s
-    const { data: recent } = await supabaseAdmin
-      .from("otp_codes")
-      .select("created_at")
-      .eq("email", normalized)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    try {
+      const { data: recent, error: selectErr } = await supabaseAdmin
+        .from("otp_codes")
+        .select("created_at")
+        .eq("email", normalized)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-    if (recent) {
-      const lastSent = new Date(recent.created_at).getTime();
-      if (Date.now() - lastSent < 60000) {
-        return NextResponse.json({ error: "请 60 秒后再试" }, { status: 429 });
+      if (selectErr) {
+        return NextResponse.json({ error: "DB查询失败", detail: selectErr.message }, { status: 500 });
       }
+
+      if (recent) {
+        const lastSent = new Date(recent.created_at).getTime();
+        if (Date.now() - lastSent < 60000) {
+          return NextResponse.json({ error: "请 60 秒后再试" }, { status: 429 });
+        }
+      }
+    } catch (e: any) {
+      return NextResponse.json({ error: "DB查询异常", detail: e.message }, { status: 500 });
     }
 
     const code = generateCode();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
     // Store OTP in Supabase
-    const { error: insertError } = await supabaseAdmin
-      .from("otp_codes")
-      .insert({
-        email: normalized,
-        code,
-        expires_at: expiresAt.toISOString(),
-        used: false,
-      });
+    try {
+      const { error: insertError } = await supabaseAdmin
+        .from("otp_codes")
+        .insert({
+          email: normalized,
+          code,
+          expires_at: expiresAt.toISOString(),
+          used: false,
+        });
 
-    if (insertError) {
-      console.error("Insert OTP error:", insertError);
-      return NextResponse.json({ error: "发送验证码失败", detail: String(e) }, { status: 500 });
+      if (insertError) {
+        return NextResponse.json({ error: "OTP写入失败", detail: insertError.message }, { status: 500 });
+      }
+    } catch (e: any) {
+      return NextResponse.json({ error: "OTP写入异常", detail: e.message }, { status: 500 });
     }
 
     // Send email
-    await sendOTPEmail(email, code);
+    try {
+      await sendOTPEmail(email, code);
+    } catch (e: any) {
+      return NextResponse.json({ error: "邮件发送失败", detail: e.message }, { status: 500 });
+    }
 
     return NextResponse.json({ success: true });
-  } catch (e) {
-    console.error("send-otp error:", e);
-    return NextResponse.json({ error: "发送验证码失败，请稍后重试" }, { status: 500 });
+  } catch (e: any) {
+    return NextResponse.json({ error: "系统异常", detail: e.message }, { status: 500 });
   }
 }
