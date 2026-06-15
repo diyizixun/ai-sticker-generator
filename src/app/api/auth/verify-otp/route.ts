@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
-// POST /api/auth/verify-otp
 export async function POST(req: NextRequest) {
   try {
     const { email, code } = await req.json();
@@ -10,51 +9,50 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "邮箱和验证码不能为空" }, { status: 400 });
     }
 
+    if (!supabaseAdmin) {
+      return NextResponse.json({ error: "系统未配置" }, { status: 500 });
+    }
+
     const normalized = email.toLowerCase().trim();
 
-    // Find valid, unused OTP
-    const { data: otpRecord, error: fetchError } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from("otp_codes")
       .select("*")
       .eq("email", normalized)
       .eq("code", code)
       .eq("used", false)
       .gt("expires_at", new Date().toISOString())
-      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    if (fetchError || !otpRecord) {
-      return NextResponse.json({ error: "验证码错误或已过期" }, { status: 401 });
+    if (error || !data) {
+      return NextResponse.json({ error: "验证码无效或已过期" }, { status: 400 });
     }
 
-    // Mark OTP as used
+    // Mark as used
     await supabaseAdmin
       .from("otp_codes")
       .update({ used: true })
-      .eq("id", otpRecord.id);
+      .eq("id", data.id);
 
-    // Create or update user in Supabase
-    await supabaseAdmin
-      .from("users")
-      .upsert(
-        { email: normalized, last_login: new Date().toISOString() },
-        { onConflict: "email" }
-      );
+    // Create/update user
+    await supabaseAdmin.from("users").upsert(
+      { email: normalized, last_login: new Date().toISOString() },
+      { onConflict: "email" }
+    );
 
-    // Set session cookie (30 days)
     const response = NextResponse.json({ success: true, email: normalized });
     response.cookies.set("session", normalized, {
+      maxAge: 60 * 60 * 24 * 30,
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: true,
       sameSite: "lax",
-      maxAge: 30 * 24 * 60 * 60,
       path: "/",
     });
 
     return response;
-  } catch (e) {
-    console.error("verify-otp error:", e);
-    return NextResponse.json({ error: "验证失败，请稍后重试" }, { status: 500 });
+  } catch (e: any) {
+    return NextResponse.json({ error: "验证失败" }, { status: 500 });
   }
 }

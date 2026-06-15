@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
 function generateCode(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
@@ -37,7 +37,11 @@ export async function POST(req: NextRequest) {
 
     const normalized = email.toLowerCase().trim();
 
-    // Rate limiting
+    if (!supabaseAdmin) {
+      return NextResponse.json({ error: "系统未配置" }, { status: 500 });
+    }
+
+    // Rate limiting: 60s cooldown
     const { data: recent, error: selectErr } = await supabaseAdmin
       .from("otp_codes")
       .select("created_at")
@@ -75,7 +79,7 @@ export async function POST(req: NextRequest) {
 
     const result = await sendViaResend(email, code);
     if (!result.ok) {
-      return NextResponse.json({ error: "邮件发送失败", detail: result.error }, { status: 500 });
+      return NextResponse.json({ error: "邮件发送失败" }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });
