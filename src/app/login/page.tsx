@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
-// SVG icons for OAuth providers
+// SVG icons
 function GoogleIcon() {
   return (
     <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -16,16 +15,11 @@ function GoogleIcon() {
   );
 }
 
-function FacebookIcon() {
-  return (
-    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.437h-3.047v-3.416h3.047V9.483c0-3.01 1.792-4.669 4.533-4.669 1.312 0 2.686.236 2.686.236v2.953h-1.513c-1.49 0-1.956.93-1.956 1.886v2.27h3.328l-.532 3.415h-2.796v8.437C19.612 23.027 24 18.062 24 12.073z"/>
-    </svg>
-  );
-}
-
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") || "/settings";
+
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [step, setStep] = useState<"email" | "verify">("email");
@@ -33,6 +27,15 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [countdown, setCountdown] = useState(0);
+
+  // 倒计时
+  useEffect(() => {
+    if (countdown <= 0) return;
+    const timer = setInterval(() => {
+      setCountdown((prev) => prev <= 1 ? 0 : prev - 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [countdown]);
 
   // 发送验证码
   const handleSendCode = async () => {
@@ -62,25 +65,7 @@ export default function LoginPage() {
 
       setSuccess("验证码已发送，请查收邮件");
       setStep("verify");
-      
-      // 开发环境显示验证码
-      if (data.code) {
-        console.log("开发模式 - 验证码:", data.code);
-        setSuccess(`验证码已发送，请查收邮件（开发模式验证码: ${data.code}）`);
-      }
-
-      // 开始倒计时（60秒后可重发）
       setCountdown(60);
-      const timer = setInterval(() => {
-        setCountdown((prev) => {
-          if (prev <= 1) {
-            clearInterval(timer);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-
     } catch {
       setError("发送失败，请稍后重试");
     } finally {
@@ -88,7 +73,7 @@ export default function LoginPage() {
     }
   };
 
-  // 验证验证码并登录
+  // 验证并登录
   const handleVerifyAndLogin = async () => {
     if (!code || code.length !== 6) {
       setError("请输入6位验证码");
@@ -99,31 +84,23 @@ export default function LoginPage() {
     setError("");
 
     try {
-      // 调用 NextAuth Credentials provider 完成验证+登录
-      // signIn 成功时会自动跳转，失败时会返回 undefined
-      const result = await signIn("email-otp", {
-        email,
-        code,
-        redirect: false, // 先不自动跳转，手动处理错误
+      const res = await fetch("/api/auth/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, code }),
       });
 
-      if (result?.error) {
-        setError("验证码错误或已过期，请重新获取");
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setError(data.error || "验证码错误或已过期");
         setLoading(false);
         return;
       }
 
-      if (result?.ok) {
-        // 登录成功，手动跳转到 /settings
-        router.push("/settings");
-        return;
-      }
-
-      // 没返回结果，可能是网络错误
-      setError("登录失败，请稍后重试");
-      setLoading(false);
-    } catch (err: any) {
-      console.error("Login error:", err);
+      // 登录成功，跳转
+      router.push(callbackUrl);
+    } catch {
       setError("登录失败，请稍后重试");
       setLoading(false);
     }
@@ -141,7 +118,6 @@ export default function LoginPage() {
         </div>
 
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 space-y-6">
-          {/* 邮箱登录区域 */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-gray-900">邮箱登录</h3>
             
@@ -173,7 +149,7 @@ export default function LoginPage() {
                 <div className="text-sm text-gray-600">
                   验证码已发送到 <span className="font-medium">{email}</span>
                   <button
-                    onClick={() => setStep("email")}
+                    onClick={() => { setStep("email"); setError(""); setSuccess(""); }}
                     className="ml-2 text-purple-600 hover:text-purple-700"
                   >
                     修改
@@ -187,7 +163,7 @@ export default function LoginPage() {
                     id="code"
                     type="text"
                     value={code}
-                    onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                     placeholder="请输入6位验证码"
                     maxLength={6}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none text-center text-2xl tracking-widest"
@@ -210,7 +186,6 @@ export default function LoginPage() {
               </>
             )}
 
-            {/* 错误和成功消息 */}
             {error && (
               <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
                 {error}
@@ -222,34 +197,6 @@ export default function LoginPage() {
               </div>
             )}
           </div>
-
-          {/* 分割线 */}
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-white text-gray-500">或使用第三方登录</span>
-            </div>
-          </div>
-
-          {/* Google OAuth */}
-          <button
-            onClick={() => signIn("google", { callbackUrl: "/settings" })}
-            className="w-full py-3 px-4 border border-gray-200 rounded-xl flex items-center justify-center gap-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-          >
-            <GoogleIcon />
-            Continue with Google
-          </button>
-
-          {/* Facebook OAuth */}
-          <button
-            onClick={() => signIn("facebook", { callbackUrl: "/settings" })}
-            className="w-full py-3 px-4 border border-gray-200 rounded-xl flex items-center justify-center gap-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-          >
-            <FacebookIcon />
-            Continue with Facebook
-          </button>
         </div>
 
         <p className="text-center text-xs text-gray-400 mt-6">

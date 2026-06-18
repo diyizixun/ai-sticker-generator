@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
 import { X, Mail, ArrowRight, Loader2, CheckCircle } from "lucide-react";
 
 interface LoginModalProps {
@@ -57,17 +56,17 @@ export default function LoginModal({ open, onClose, onSuccess }: LoginModalProps
     setLoading(true);
     setError("");
     try {
-      const result = await signIn("email-otp", {
-        email,
-        code,
-        redirect: false,
+      const res = await fetch("/api/auth/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, code }),
       });
-
-      if (result?.ok) {
+      const data = await res.json();
+      if (res.ok && data.success) {
         onSuccess();
         handleClose();
       } else {
-        setError(result?.error || "Invalid verification code. Please try again.");
+        setError(data.error || "Invalid verification code. Please try again.");
       }
     } catch {
       setError("Login failed. Please try again.");

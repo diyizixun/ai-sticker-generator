@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Sparkles, Download, Shield, Zap, Globe, Printer, Crown, Check } from "lucide-react";
-import { useSession, signIn } from "next-auth/react";
+import { useSession } from "@/hooks/useSession";
 import { PRICING } from "@/lib/config";
 import StickerGenerator from "./StickerGenerator";
 import LoginModal from "./LoginModal";
@@ -48,7 +48,7 @@ const faqs = [
 ];
 
 export default function HomePage() {
-  const { data: session, status } = useSession();
+  const { session, status } = useSession();
   const [loginOpen, setLoginOpen] = useState(false);
   const [loginSuccess, setLoginSuccess] = useState(false);
   const [pendingAction, setPendingAction] = useState<"monthly" | "yearly" | null>(null);
@@ -66,7 +66,7 @@ export default function HomePage() {
   };
 
   const handleUpgrade = async (priceType: "monthly" | "yearly") => {
-    if (status === "unauthenticated" || !session?.user) {
+    if (status === "unauthenticated" || !session?.email) {
       setPendingAction(priceType);
       setLoginOpen(true);
       return;
@@ -108,20 +108,16 @@ export default function HomePage() {
           <div className="flex items-center gap-3">
             {status === "loading" ? (
               <div className="w-8 h-8 rounded-full bg-gray-200 animate-pulse" />
-            ) : session?.user ? (
+            ) : session?.email ? (
               <button
                 onClick={() => window.location.href = "/settings"}
                 className="flex items-center gap-2 hover:opacity-80 transition-opacity"
               >
-                {session.user.image ? (
-                  <img src={session.user.image} alt="" className="w-8 h-8 rounded-full" />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white text-sm font-medium">
-                    {(session.user.name?.[0] || session.user.email?.[0] || "?").toUpperCase()}
-                  </div>
-                )}
+                <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white text-sm font-medium">
+                  {(session.email?.[0] || "?").toUpperCase()}
+                </div>
                 <span className="text-sm font-medium text-gray-700 hidden sm:block">
-                  {session.user.name || session.user.email}
+                  {session.email}
                 </span>
               </button>
             ) : (

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/hooks/useSession";
 import { STYLES } from "@/lib/config";
 import StickerImage from "@/components/StickerImage";
 import LoginModal from "@/components/LoginModal";
@@ -21,7 +21,7 @@ export default function ResultClient({
   styleEmoji,
   fullPrompt,
 }: ResultClientProps) {
-  const { data: session, status } = useSession();
+  const { session, status } = useSession();
   const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
   const [regenerateKey, setRegenerateKey] = useState(0);
   const [quota, setQuota] = useState<{ remaining: number; limit: number } | null>(null);
@@ -46,7 +46,7 @@ export default function ResultClient({
 
   const handleDownload = () => {
     // 已登录：直接下载
-    if (session?.user) {
+    if (session?.email) {
       triggerDownload();
       return;
     }
@@ -81,9 +81,9 @@ export default function ResultClient({
             <span className="font-bold text-lg text-gray-900">AI Sticker Generator</span>
           </a>
           <div className="flex items-center gap-3">
-            {status === "authenticated" && session?.user ? (
+            {status === "authenticated" && session?.email ? (
               <span className="text-sm text-gray-600">
-                👋 {session.user.name || session.user.email}
+                👋 {session.email}
               </span>
             ) : (
               <button

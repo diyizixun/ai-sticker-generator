@@ -1,17 +1,3 @@
-// 全局类型定义
-
-declare module "next-auth" {
-  interface Session {
-    user: {
-      id: string;
-      email: string;
-      name?: string | null;
-      image?: string | null;
-      plan: "free" | "pro";
-    };
-  }
-}
-
 // API响应类型
 export interface ApiResponse<T = unknown> {
   success: boolean;
