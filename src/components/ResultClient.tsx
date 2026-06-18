@@ -131,7 +131,7 @@ export default function ResultClient({
                 <p className="font-medium text-gray-900 text-sm">Standard Download</p>
                 <p className="text-xs text-gray-500">
                   512px · With background · {" "}
-                  {session?.user ? "Click to download" : "Sign in to download"}
+                  {session?.email ? "Click to download" : "Sign in to download"}
                 </p>
               </div>
               {generatedUrl ? (
@@ -139,7 +139,7 @@ export default function ResultClient({
                   onClick={handleDownload}
                   className="px-5 py-2.5 rounded-xl text-sm font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 transition-colors"
                 >
-                  {session?.user ? "Free Download" : "Sign In to Download"}
+                  {session?.email ? "Free Download" : "Sign In to Download"}
                 </button>
               ) : (
                 <span className="px-5 py-2.5 rounded-xl text-sm font-medium text-gray-400 bg-gray-50 cursor-wait">
