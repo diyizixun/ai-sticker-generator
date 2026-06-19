@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 // SVG icons
 function GoogleIcon() {
@@ -16,7 +16,6 @@ function GoogleIcon() {
 }
 
 function LoginContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/settings";
 
@@ -98,8 +97,8 @@ function LoginContent() {
         return;
       }
 
-      // 登录成功，跳转
-      router.push(callbackUrl);
+      // 登录成功，用 full page reload 确保 cookie 生效
+      window.location.href = callbackUrl;
     } catch {
       setError("登录失败，请稍后重试");
       setLoading(false);
