@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/Providers";
+import Footer from "@/components/Footer";
 
 // Temporarily disable Ads components to debug 500 error
 // import { GoogleAnalytics, GoogleAdSense } from "@/components/Ads";
@@ -94,7 +95,10 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col bg-white text-gray-900">
-        <Providers>{children}</Providers>
+        <Providers>
+          <main className="flex-1">{children}</main>
+          <Footer />
+        </Providers>
       </body>
     </html>
   );
