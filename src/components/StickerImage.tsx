@@ -10,6 +10,7 @@ interface StickerImageProps {
   className?: string;
   style?: React.CSSProperties;
   onImageReady?: (dataUrl: string) => void;
+  onQuotaUpdate?: (remaining: number, limit: number) => void;
 }
 
 export default function StickerImage({
@@ -18,6 +19,7 @@ export default function StickerImage({
   className = "",
   style,
   onImageReady,
+  onQuotaUpdate,
 }: StickerImageProps) {
   const [dataUrl, setDataUrl] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);
@@ -45,6 +47,10 @@ export default function StickerImage({
       const json = await res.json();
       if (json.success && json.imageUrl) {
         setDataUrl(json.imageUrl);
+        // 立刻通知父组件更新 quota（不等图片加载）
+        if (json.quota && onQuotaUpdate) {
+          onQuotaUpdate(json.quota.remaining, json.quota.limit);
+        }
       } else {
         throw new Error(json.error || "Generation failed");
       }

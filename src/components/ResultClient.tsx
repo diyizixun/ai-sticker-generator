@@ -60,6 +60,11 @@ export default function ResultClient({
     setTimeout(() => triggerDownload(), 300);
   };
 
+  // 生成完成后立刻更新 quota（不等图片加载）
+  const handleQuotaUpdate = (remaining: number, limit: number) => {
+    setQuota({ remaining, limit });
+  };
+
   const handleRegenerate = () => {
     setGeneratedUrl(null);
     setRegenerateKey((k) => k + 1);
@@ -118,6 +123,7 @@ export default function ResultClient({
               alt={`Sticker: ${userPrompt}`}
               className="max-w-[512px] max-h-[512px] w-full h-auto object-contain rounded-lg shadow-md"
               onImageReady={(url) => setGeneratedUrl(url)}
+              onQuotaUpdate={handleQuotaUpdate}
             />
           </div>
         </div>
