@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import { ImageIcon, Sparkles, ChevronDown, Wand2, Loader2 } from "lucide-react";
 import { STYLES } from "@/lib/config";
 import { clsx } from "clsx";
+import { getLocalQuota, incrementLocalQuota } from "@/lib/clientQuota";
+import { useSession } from "@/hooks/useSession";
 
 type Mode = "text" | "image";
 
@@ -26,6 +28,7 @@ function useVisitorId(): void {
 
 export default function StickerGenerator({ initialPrompt }: StickerGeneratorProps) {
   useVisitorId();
+  const { session, status } = useSession();
   const [mode, setMode] = useState<Mode>("text");
   const [prompt, setPrompt] = useState(initialPrompt || "");
   const [selectedStyle, setSelectedStyle] = useState("cute");
@@ -40,13 +43,20 @@ export default function StickerGenerator({ initialPrompt }: StickerGeneratorProp
     if (initialPrompt) setPrompt(initialPrompt);
   }, [initialPrompt]);
 
-  // 获取当日配额
+  // 获取当日配额：登录用户走 API（DB），匿名用户走 localStorage
   useEffect(() => {
-    fetch("/api/quota")
-      .then((r) => r.json())
-      .then((d: { remaining: number; limit: number }) => setQuota(d))
-      .catch(() => {});
-  }, []);
+    if (status === "loading") return;
+    if (status === "authenticated" && session?.email) {
+      // 登录用户：从 DB 读真实 quota
+      fetch("/api/quota", { credentials: "include" })
+        .then((r) => r.json())
+        .then((d: { remaining: number; limit: number }) => setQuota(d))
+        .catch(() => {});
+    } else {
+      // 匿名用户：从 localStorage 读（持久，跨请求不丢）
+      setQuota(getLocalQuota());
+    }
+  }, [status, session]);
 
   const isBlocked = () => {
     const lower = prompt.toLowerCase();
@@ -65,6 +75,11 @@ export default function StickerGenerator({ initialPrompt }: StickerGeneratorProp
 
   const handleGenerate = async () => {
     if (mode === "text") {
+      // 匿名用户：跳转前先在 localStorage 扣一次 quota，让返回时显示正确
+      if (status !== "authenticated") {
+        const newQuota = incrementLocalQuota();
+        setQuota(newQuota);
+      }
       window.location.href = `/result?p=${encodeURIComponent(prompt.trim())}&s=${selectedStyle}`;
       return;
     }

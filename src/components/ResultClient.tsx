@@ -5,6 +5,7 @@ import { useSession } from "@/hooks/useSession";
 import { STYLES } from "@/lib/config";
 import StickerImage from "@/components/StickerImage";
 import LoginModal from "@/components/LoginModal";
+import { incrementLocalQuota } from "@/lib/clientQuota";
 
 interface ResultClientProps {
   userPrompt: string;
@@ -63,6 +64,10 @@ export default function ResultClient({
   // 生成完成后立刻更新 quota（不等图片加载）
   const handleQuotaUpdate = (remaining: number, limit: number) => {
     setQuota({ remaining, limit });
+    // 匿名用户：同步写入 localStorage，返回首页时也能显示正确数字
+    if (!session?.email) {
+      incrementLocalQuota();
+    }
   };
 
   const handleRegenerate = () => {
