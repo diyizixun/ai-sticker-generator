@@ -4,8 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 
 interface Session {
   email: string;
-  iat: number;
-  exp: number;
 }
 
 interface UseSessionReturn {
@@ -20,14 +18,11 @@ export function useSession(): UseSessionReturn {
 
   const fetchSession = useCallback(() => {
     setStatus("loading");
-    fetch("/api/auth/session")
-      .then((r) => {
-        if (!r.ok) throw new Error("Not authenticated");
-        return r.json();
-      })
+    fetch("/api/auth/session", { credentials: "include" })
+      .then((r) => r.json())
       .then((data) => {
-        if (data.email) {
-          setSession(data);
+        if (data.loggedIn && data.email) {
+          setSession({ email: data.email });
           setStatus("authenticated");
         } else {
           setSession(null);

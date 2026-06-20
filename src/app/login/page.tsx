@@ -3,18 +3,6 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 
-// SVG icons
-function GoogleIcon() {
-  return (
-    <svg className="w-5 h-5" viewBox="0 0 24 24">
-      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
-      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-    </svg>
-  );
-}
-
 function LoginContent() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/settings";
@@ -27,16 +15,14 @@ function LoginContent() {
   const [success, setSuccess] = useState("");
   const [countdown, setCountdown] = useState(0);
 
-  // 倒计时
   useEffect(() => {
     if (countdown <= 0) return;
     const timer = setInterval(() => {
-      setCountdown((prev) => prev <= 1 ? 0 : prev - 1);
+      setCountdown((prev) => (prev <= 1 ? 0 : prev - 1));
     }, 1000);
     return () => clearInterval(timer);
   }, [countdown]);
 
-  // 发送验证码
   const handleSendCode = async () => {
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setError("请输入有效的邮箱地址");
@@ -52,6 +38,7 @@ function LoginContent() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
+        credentials: "include",
       });
 
       const data = await res.json();
@@ -72,7 +59,6 @@ function LoginContent() {
     }
   };
 
-  // 验证并登录
   const handleVerifyAndLogin = async () => {
     if (!code || code.length !== 6) {
       setError("请输入6位验证码");
@@ -87,6 +73,7 @@ function LoginContent() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, code }),
+        credentials: "include",
       });
 
       const data = await res.json();
@@ -97,7 +84,22 @@ function LoginContent() {
         return;
       }
 
-      // 登录成功，用 full page reload 确保 cookie 生效
+      // 关键：验证 cookie 是否已生效，再跳转
+      try {
+        const sessionRes = await fetch("/api/auth/session", {
+          credentials: "include",
+        });
+        const sessionData = await sessionRes.json();
+        if (sessionData.loggedIn) {
+          // cookie 已生效，整页跳转
+          window.location.href = callbackUrl;
+          return;
+        }
+      } catch {
+        // session 检查失败，但仍然跳转（cookie 可能已设置）
+      }
+
+      // 兜底：直接跳转
       window.location.href = callbackUrl;
     } catch {
       setError("登录失败，请稍后重试");
@@ -119,7 +121,7 @@ function LoginContent() {
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 space-y-6">
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-gray-900">邮箱登录</h3>
-            
+
             {step === "email" ? (
               <>
                 <div>
@@ -199,7 +201,7 @@ function LoginContent() {
         </div>
 
         <p className="text-center text-xs text-gray-400 mt-6">
-          By signing in, you agree to our Terms of Service and Privacy Policy.
+          By signing in, you agree to our <a href="/terms" className="underline">Terms of Service</a> and <a href="/privacy" className="underline">Privacy Policy</a>.
         </p>
       </div>
     </div>

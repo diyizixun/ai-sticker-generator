@@ -42,7 +42,7 @@ export default function SettingsPage() {
   const [checkoutLoading, setCheckoutLoading] = useState(false);
 
   useEffect(() => {
-    fetch("/api/user")
+    fetch("/api/user", { credentials: "include" })
       .then((r) => (r.ok ? r.json() : null))
       .then(setData)
       .catch(() => null)
