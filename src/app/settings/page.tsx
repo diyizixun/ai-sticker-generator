@@ -87,8 +87,17 @@ export default function SettingsPage() {
     }
   };
 
-  const handleSignOut = () => {
-    window.location.href = "/api/auth/signout";
+  const handleSignOut = async () => {
+    try {
+      await fetch("/api/auth/signout", {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch {
+      // 即使请求失败也继续跳转
+    }
+    // 强制整页刷新跳首页，确保所有状态清空
+    window.location.href = "/";
   };
 
   if (loading) {
