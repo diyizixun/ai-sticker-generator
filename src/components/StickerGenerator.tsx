@@ -6,6 +6,7 @@ import { STYLES } from "@/lib/config";
 import { clsx } from "clsx";
 import { getLocalQuota, incrementLocalQuota } from "@/lib/clientQuota";
 import { useSession } from "@/hooks/useSession";
+import QuotaLimitNotice from "@/components/QuotaLimitNotice";
 
 type Mode = "text" | "image";
 
@@ -278,13 +279,17 @@ export default function StickerGenerator({ initialPrompt }: StickerGeneratorProp
               )}
             </button>
 
-            {quota !== null && (
-              <p className={clsx("text-xs text-center", quota.remaining <= 0 ? "text-amber-600 font-medium" : "text-gray-400")}>
-                {quota.remaining <= 0
-                  ? `Daily limit reached (${quota.limit}/${quota.limit})`
-                  : `${quota.remaining} of ${quota.limit} free generations left today`}
+            {quota !== null && quota.remaining <= 0 ? (
+              <QuotaLimitNotice
+                limit={quota.limit}
+                isLoggedIn={status === "authenticated"}
+                variant="full"
+              />
+            ) : quota !== null ? (
+              <p className="text-xs text-center text-gray-400">
+                {quota.remaining} of {quota.limit} free generations left today
               </p>
-            )}
+            ) : null}
           </div>
         </div>
       </div>

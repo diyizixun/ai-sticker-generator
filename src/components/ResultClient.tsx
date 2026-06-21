@@ -6,6 +6,7 @@ import { STYLES } from "@/lib/config";
 import StickerImage from "@/components/StickerImage";
 import LoginModal from "@/components/LoginModal";
 import { incrementLocalQuota } from "@/lib/clientQuota";
+import QuotaLimitNotice from "@/components/QuotaLimitNotice";
 
 interface ResultClientProps {
   userPrompt: string;
@@ -204,13 +205,17 @@ export default function ResultClient({
           >
             🔄 Regenerate with {styleName} Style
           </button>
-          {quota !== null && (
-            <p className={quota.remaining <= 0 ? "text-xs text-center text-amber-600 font-medium" : "text-xs text-center text-gray-400"}>
-              {quota.remaining <= 0
-                ? `Daily limit reached (${quota.limit}/${quota.limit}) — resets at midnight`
-                : `${quota.remaining} of ${quota.limit} free generations left today`}
+          {quota !== null && quota.remaining <= 0 ? (
+            <QuotaLimitNotice
+              limit={quota.limit}
+              isLoggedIn={status === "authenticated"}
+              variant="compact"
+            />
+          ) : quota !== null ? (
+            <p className="text-xs text-center text-gray-400">
+              {quota.remaining} of {quota.limit} free generations left today
             </p>
-          )}
+          ) : null}
         </div>
 
         {/* Try other styles */}

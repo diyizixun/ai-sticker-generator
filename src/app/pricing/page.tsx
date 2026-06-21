@@ -64,7 +64,7 @@ export default function PricingPage() {
               <p className="text-sm text-gray-500">Forever</p>
             </div>
             <ul className="space-y-3 mb-8 text-sm text-gray-600">
-              <li className="flex items-start gap-2"><span className="text-green-500 mt-0.5">✓</span>Unlimited sticker generation</li>
+              <li className="flex items-start gap-2"><span className="text-green-500 mt-0.5">✓</span>5 free generations per day</li>
               <li className="flex items-start gap-2"><span className="text-green-500 mt-0.5">✓</span>Standard quality (512px)</li>
               <li className="flex items-start gap-2"><span className="text-green-500 mt-0.5">✓</span>Ad-supported</li>
               <li className="flex items-start gap-2"><span className="text-green-500 mt-0.5">✓</span>Personal use</li>
@@ -81,6 +81,7 @@ export default function PricingPage() {
               <p className="text-sm text-gray-500">or $79/year (save 33%)</p>
             </div>
             <ul className="space-y-3 mb-8 text-sm text-gray-600">
+              <li className="flex items-start gap-2"><span className="text-purple-600 mt-0.5">✓</span><strong>Unlimited</strong> sticker generation</li>
               <li className="flex items-start gap-2"><span className="text-purple-600 mt-0.5">✓</span><strong>Transparent PNG</strong> (print-ready)</li>
               <li className="flex items-start gap-2"><span className="text-purple-600 mt-0.5">✓</span>HD Quality (1024×1024)</li>
               <li className="flex items-start gap-2"><span className="text-purple-600 mt-0.5">✓</span>No Ads</li>
