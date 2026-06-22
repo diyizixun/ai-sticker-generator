@@ -2,16 +2,13 @@
 // 文档: https://docs.creem.io
 // 优势: 中国大陆身份证+支付宝即可收款，无需海外公司
 
-import { z } from "zod";
-
 const CREEM_API_BASE = "https://api.creem.io/v1";
 
-// Creem Webhook签名验证
+// Creem Webhook签名验证（使用 creem-signature header）
 export function verifyCreemWebhookSignature(
   payload: string,
   signature: string
 ): boolean {
-  // Creem使用HMAC-SHA256签名
   const crypto = require("crypto");
   const secret = process.env.CREEM_WEBHOOK_SECRET!;
   const expectedSig = crypto
@@ -28,23 +25,30 @@ export const CREEM_PRODUCTS = {
 } as const;
 
 // 创建Checkout链接 — 调 Creem API 获取真实 checkout URL
+// Creem API 文档: https://docs.creem.io/api-reference/endpoint/create-checkout
 export async function getCheckoutUrl(
   productId: string,
   userId: string,
+  userEmail: string,
 ): Promise<string> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.aisticker.pics";
   const apiKey = process.env.CREEM_API_KEY;
   if (!apiKey) throw new Error("CREEM_API_KEY not configured");
 
-  const response = await fetch("https://api.creem.io/v1/checkout", {
+  const response = await fetch(`${CREEM_API_BASE}/checkouts`, {
     method: "POST",
     headers: {
-      "X-API-KEY": apiKey,
+      "x-api-key": apiKey,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
       product_id: productId,
-      customer_id: userId,
+      customer: {
+        email: userEmail,
+      },
+      metadata: {
+        userId: userId,
+      },
       success_url: `${baseUrl}/settings?checkout=success`,
       cancel_url: `${baseUrl}/pricing?checkout=cancelled`,
     }),
@@ -56,8 +60,7 @@ export async function getCheckoutUrl(
   }
 
   const data = await response.json();
-  // 返回 checkout_url（Creem 返回的真实支付链接）
-  return data.checkout_url || data.url;
+  return data.checkout_url;
 }
 
 // Creem API调用封装
@@ -72,7 +75,7 @@ async function creemApi(
   const response = await fetch(`${CREEM_API_BASE}${path}`, {
     method,
     headers: {
-      "X-API-KEY": apiKey,
+      "x-api-key": apiKey,
       "Content-Type": "application/json",
     },
     body: body ? JSON.stringify(body) : undefined,

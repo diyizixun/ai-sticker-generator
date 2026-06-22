@@ -1,82 +1,60 @@
+import { verifyCreemWebhookSignature } from "@/lib/creem/server";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { verifyCreemWebhookSignature } from "@/lib/creem/server";
 
-/**
- * POST /api/webhooks/creem
- *
- * Creem 支付成功/订阅变更时回调此接口
- * 事件类型：payment.succeeded, subscription.created, subscription.cancelled 等
- */
-export async function POST(req: NextRequest) {
+// Creem webhook 验证 & 处理
+// 文档: https://docs.creem.io/api-reference/endpoint/webhook
+export async function POST(request: NextRequest) {
   try {
-    const signature = req.headers.get("x-creem-signature") || "";
-    const rawBody = await req.text();
+    const payload = await request.text();
+    const signature = request.headers.get("creem-signature") || "";
 
-    // 验证签名
-    const isValid = verifyCreemWebhookSignature(rawBody, signature);
+    // 验证 webhook 签名
+    const isValid = verifyCreemWebhookSignature(payload, signature);
     if (!isValid) {
-      console.error("[Creem Webhook] Invalid signature");
-      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+      console.error("Invalid Creem webhook signature");
+      return NextResponse.json(
+        { error: "Invalid signature" },
+        { status: 400 }
+      );
     }
 
-    const event = JSON.parse(rawBody);
-    const { event_type, data } = event;
+    const event = JSON.parse(payload);
+    console.log("Creem webhook event:", event.type, event.data?.id);
 
-    console.log("[Creem Webhook]", event_type, data);
+    // 处理支付成功事件
+    // 注意: Creem webhook event type 可能不同，常见是 checkout.paid 或 subscription.paid
+    if (
+      event.type === "checkout.paid" ||
+      event.type === "subscription.paid" ||
+      event.type === "payment.succeeded"
+    ) {
+      const userId = event.data?.metadata?.userId || event.metadata?.userId;
+      if (userId) {
+        // 标记用户为 Pro
+        const { error } = await supabaseAdmin
+          .from("profiles")
+          .update({
+            is_pro: true,
+            pro_since: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", userId);
 
-    if (!supabaseAdmin) {
-      return NextResponse.json({ error: "Supabase not configured" }, { status: 500 });
-    }
-
-    // 根据事件类型处理
-    switch (event_type) {
-      case "payment.succeeded":
-      case "subscription.created":
-      case "subscription.renewed": {
-        const email = data.customer_email || data.customer?.email;
-        const subscriptionId = data.id || data.subscription_id;
-
-        if (email) {
-          await supabaseAdmin
-            .from("users")
-            .update({
-              plan: "pro",
-              subscription_status: "active",
-              stripe_subscription_id: subscriptionId || null,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("email", email);
-          console.log(`[Creem Webhook] Upgraded ${email} to Pro`);
+        if (error) {
+          console.error("Failed to update user to Pro:", error);
+        } else {
+          console.log(`User ${userId} upgraded to Pro`);
         }
-        break;
       }
-
-      case "subscription.cancelled":
-      case "subscription.expired": {
-        const email = data.customer_email || data.customer?.email;
-
-        if (email) {
-          await supabaseAdmin
-            .from("users")
-            .update({
-              plan: "free",
-              subscription_status: "cancelled",
-              updated_at: new Date().toISOString(),
-            })
-            .eq("email", email);
-          console.log(`[Creem Webhook] Downgraded ${email} to Free`);
-        }
-        break;
-      }
-
-      default:
-        console.log(`[Creem Webhook] Unhandled event: ${event_type}`);
     }
 
     return NextResponse.json({ received: true });
-  } catch (e: any) {
-    console.error("[Creem Webhook] Error:", e);
-    return NextResponse.json({ error: e.message }, { status: 500 });
+  } catch (error) {
+    console.error("Webhook error:", error);
+    return NextResponse.json(
+      { error: "Webhook handler failed" },
+      { status: 500 }
+    );
   }
 }
