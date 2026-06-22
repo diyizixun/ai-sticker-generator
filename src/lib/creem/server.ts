@@ -35,6 +35,8 @@ export async function getCheckoutUrl(
   const apiKey = process.env.CREEM_API_KEY;
   if (!apiKey) throw new Error("CREEM_API_KEY not configured");
 
+  // 注意：Creem 正式环境 API Key 前缀是 creem_live_ 不是 creem_
+  // 如果报 403，请在 Creem Dashboard → Settings → API Keys 确认 key 格式
   const response = await fetch(`${CREEM_API_BASE}/checkouts`, {
     method: "POST",
     headers: {
@@ -43,14 +45,12 @@ export async function getCheckoutUrl(
     },
     body: JSON.stringify({
       product_id: productId,
-      customer: {
-        email: userEmail,
-      },
+      success_url: `${baseUrl}/settings?checkout=success`,
+      // 可选：携带用户标识，webhook 会原样返回
       metadata: {
         userId: userId,
+        email: userEmail,
       },
-      success_url: `${baseUrl}/settings?checkout=success`,
-      cancel_url: `${baseUrl}/pricing?checkout=cancelled`,
     }),
   });
 
