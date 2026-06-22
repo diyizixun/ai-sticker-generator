@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const checkoutUrl = getCheckoutUrl(productId, session);
+    const checkoutUrl = await getCheckoutUrl(productId, session);
 
     return NextResponse.json({ url: checkoutUrl });
   } catch (e: any) {
