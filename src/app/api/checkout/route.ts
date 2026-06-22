@@ -21,14 +21,16 @@ export async function POST(request: Request) {
       );
     }
 
-    // 从 DB 获取用户 ID
-    const { data: profile } = await supabaseAdmin
-      .from("profiles")
-      .select("id")
-      .eq("email", email)
-      .single();
-
-    const userId = profile?.id || email;
+    // 从 DB 获取用户 ID（supabaseAdmin 可能为 null，需判断）
+    let userId = email;
+    if (supabaseAdmin) {
+      const { data: profile } = await supabaseAdmin
+        .from("profiles")
+        .select("id")
+        .eq("email", email)
+        .single();
+      if (profile?.id) userId = profile.id;
+    }
 
     // 确定产品 ID
     const productId =
