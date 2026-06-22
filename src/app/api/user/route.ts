@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
       .lt("created_at", `${today}T23:59:59Z`);
 
     const isPro = user.plan === "pro" && user.subscription_status === "active";
-    const dailyLimit = isPro ? 9999 : 5;
+    const dailyLimit = isPro ? 9999 : 10;
     const remaining = isPro ? 9999 : Math.max(0, dailyLimit - (todayCount || 0));
 
     // 5. 返回数据（字段名匹配 settings 页面的期望）

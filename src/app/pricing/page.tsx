@@ -64,7 +64,8 @@ export default function PricingPage() {
               <p className="text-sm text-gray-500">Forever</p>
             </div>
             <ul className="space-y-3 mb-8 text-sm text-gray-600">
-              <li className="flex items-start gap-2"><span className="text-green-500 mt-0.5">✓</span>5 free generations per day</li>
+              <li className="flex items-start gap-2"><span className="text-green-500 mt-0.5">✓</span>5 free generations per day (guest)</li>
+              <li className="flex items-start gap-2"><span className="text-green-500 mt-0.5">✓</span>10 free generations per day (signed in)</li>
               <li className="flex items-start gap-2"><span className="text-green-500 mt-0.5">✓</span>Standard quality (512px)</li>
               <li className="flex items-start gap-2"><span className="text-green-500 mt-0.5">✓</span>Ad-supported</li>
               <li className="flex items-start gap-2"><span className="text-green-500 mt-0.5">✓</span>Personal use</li>

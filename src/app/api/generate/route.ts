@@ -133,7 +133,7 @@ export async function GET(req: NextRequest) {
       .eq("email", session)
       .single();
     const isPro = userRow?.plan === "pro" && userRow?.subscription_status === "active";
-    const dailyLimit = isPro ? 9999 : 5;
+    const dailyLimit = isPro ? 9999 : 10;
     const { count } = await supabaseAdmin!
       .from("generations")
       .select("*", { count: "exact", head: true })
