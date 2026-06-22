@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
       event.type === "payment.succeeded"
     ) {
       const userId = event.data?.metadata?.userId || event.metadata?.userId;
-      if (userId) {
+      if (userId && supabaseAdmin) {
         // 标记用户为 Pro
         const { error } = await supabaseAdmin
           .from("profiles")
