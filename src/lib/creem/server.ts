@@ -1,8 +1,9 @@
 // Creem支付 - 服务端工具
 // 文档: https://docs.creem.io
 // 优势: 中国大陆身份证+支付宝即可收款，无需海外公司
-
-const CREEM_API_BASE = "https://api.creem.io/v1";
+//
+// 当前方案：Creem 托管 Checkout URL（无需 API Key）
+// API 方式（x-api-key）返回 403 error 1010，等 Creem 支持确认后再切回
 
 // Creem Webhook签名验证（使用 creem-signature header）
 export function verifyCreemWebhookSignature(
@@ -24,46 +25,24 @@ export const CREEM_PRODUCTS = {
   proYearly: process.env.CREEM_PRO_YEARLY_PRODUCT_ID!,   // $79/年
 } as const;
 
-// 创建Checkout链接 — 调 Creem API 获取真实 checkout URL
-// Creem API 文档: https://docs.creem.io/api-reference/endpoint/create-checkout
-export async function getCheckoutUrl(
+// 创建Checkout链接 — 使用 Creem 托管 Checkout 页面
+// 这是官方支持的免 API 方式，用户直接跳转到 Creem 支付页面
+// 格式: https://www.creem.io/checkout/{product_id}?email=...
+export function getCheckoutUrl(
   productId: string,
-  userId: string,
   userEmail: string,
-): Promise<string> {
+): string {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.aisticker.pics";
-  const apiKey = process.env.CREEM_API_KEY;
-  if (!apiKey) throw new Error("CREEM_API_KEY not configured");
-
-  // 注意：Creem 正式环境 API Key 前缀是 creem_live_ 不是 creem_
-  // 如果报 403，请在 Creem Dashboard → Settings → API Keys 确认 key 格式
-  const response = await fetch(`${CREEM_API_BASE}/checkouts`, {
-    method: "POST",
-    headers: {
-      "x-api-key": apiKey,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      product_id: productId,
-      success_url: `${baseUrl}/settings?checkout=success`,
-      // 可选：携带用户标识，webhook 会原样返回
-      metadata: {
-        userId: userId,
-        email: userEmail,
-      },
-    }),
+  // Creem 托管 checkout — 直接跳转，无需 API
+  const params = new URLSearchParams({
+    email: userEmail,
+    success_url: `${baseUrl}/settings?checkout=success`,
+    cancel_url: `${baseUrl}/pricing?checkout=cancelled`,
   });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Creem checkout error: ${response.status} - ${error}`);
-  }
-
-  const data = await response.json();
-  return data.checkout_url;
+  return `https://www.creem.io/checkout/${productId}?${params.toString()}`;
 }
 
-// Creem API调用封装
+// Creem API调用封装（暂时未用，等 API 权限开通后启用）
 async function creemApi(
   method: string,
   path: string,
@@ -72,7 +51,7 @@ async function creemApi(
   const apiKey = process.env.CREEM_API_KEY;
   if (!apiKey) throw new Error("CREEM_API_KEY not configured");
 
-  const response = await fetch(`${CREEM_API_BASE}${path}`, {
+  const response = await fetch(`https://api.creem.io/v1${path}`, {
     method,
     headers: {
       "x-api-key": apiKey,

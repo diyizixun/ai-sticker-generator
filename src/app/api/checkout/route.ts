@@ -21,29 +21,14 @@ export async function POST(request: Request) {
       );
     }
 
-    // 从 DB 获取用户 ID（supabaseAdmin 可能为 null）
-    let userId = email;
-    if (supabaseAdmin) {
-      const { data: profile } = await supabaseAdmin
-        .from("profiles")
-        .select("id")
-        .eq("email", email)
-        .single();
-      if (profile?.id) userId = profile.id;
-    }
-
     // 确定产品 ID
     const productId =
       priceType === "yearly"
         ? process.env.CREEM_PRO_YEARLY_PRODUCT_ID!
         : process.env.CREEM_PRO_MONTHLY_PRODUCT_ID!;
 
-    // 调 Creem API 获取真实 checkout URL
-    const checkoutUrl = await getCheckoutUrl(
-      productId,
-      userId,
-      email,
-    );
+    // 使用 Creem 托管 Checkout URL（无需 API Key）
+    const checkoutUrl = getCheckoutUrl(productId, email);
 
     return Response.json({ url: checkoutUrl });
   } catch (error) {
