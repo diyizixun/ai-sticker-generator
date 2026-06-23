@@ -49,7 +49,10 @@ export async function getCheckoutUrl(
 
       if (response.ok) {
         const data = await response.json();
-        if (data.checkout_url) return data.checkout_url;
+        // API 返回的 checkout_url 应该是字符串，如果不是则降级
+        if (typeof data.checkout_url === 'string' && data.checkout_url) {
+          return data.checkout_url;
+        }
       }
     } catch {
       // API 调用失败，降级到托管 URL
