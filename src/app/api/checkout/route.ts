@@ -28,7 +28,7 @@ export async function POST(request: Request) {
         : process.env.CREEM_PRO_MONTHLY_PRODUCT_ID!;
 
     // 使用 Creem 托管 Checkout URL（无需 API Key）
-    const checkoutUrl = getCheckoutUrl(productId, email);
+    const checkoutUrl = await getCheckoutUrl(productId, email);
 
     return Response.json({ url: checkoutUrl });
   } catch (error) {
