@@ -20,32 +20,48 @@ export async function POST(request: NextRequest) {
     }
 
     const event = JSON.parse(payload);
-    console.log("Creem webhook event:", event.type, event.data?.id);
+    console.log("Creem webhook event:", event.type, JSON.stringify(event.data));
 
     // 处理支付成功事件
-    // 注意: Creem webhook event type 可能不同，常见是 checkout.paid 或 subscription.paid
+    // Creem event types: checkout.paid, subscription.paid, etc.
     if (
       event.type === "checkout.paid" ||
       event.type === "subscription.paid" ||
       event.type === "payment.succeeded"
     ) {
-      const userId = event.data?.metadata?.userId || event.metadata?.userId;
-      if (userId && supabaseAdmin) {
-        // 标记用户为 Pro
-        const { error } = await supabaseAdmin
-          .from("profiles")
-          .update({
-            is_pro: true,
-            pro_since: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", userId);
+      // 从 metadata 中获取用户 email（创建 checkout 时传入）
+      const userEmail =
+        event.data?.metadata?.user_email ||
+        event.metadata?.user_email;
 
-        if (error) {
-          console.error("Failed to update user to Pro:", error);
+      if (userEmail && supabaseAdmin) {
+        // 根据 email 查找用户 id
+        const { data: profile } = await supabaseAdmin
+          .from("profiles")
+          .select("id")
+          .eq("email", userEmail)
+          .single();
+
+        if (profile) {
+          const { error } = await supabaseAdmin
+            .from("profiles")
+            .update({
+              is_pro: true,
+              pro_since: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", profile.id);
+
+          if (error) {
+            console.error("Failed to update user to Pro:", error);
+          } else {
+            console.log(`User ${userEmail} upgraded to Pro`);
+          }
         } else {
-          console.log(`User ${userId} upgraded to Pro`);
+          console.error("Webhook: user not found by email:", userEmail);
         }
+      } else {
+        console.log("Webhook: no userEmail in metadata, event data:", JSON.stringify(event.data));
       }
     }
 

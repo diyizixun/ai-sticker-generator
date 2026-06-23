@@ -23,15 +23,15 @@ export const CREEM_PRODUCTS = {
 } as const;
 
 // 创建Checkout链接
-// 优先用 Creem API（有更好的 success_url 支持），API 不可用时降级到托管 URL
+// 使用 Creem API 创建 checkout session，获取 checkout_url 重定向用户
+// 注意：Creem API 只接受 product_id 参数，不支持 success_url / cancel_url
 export async function getCheckoutUrl(
   productId: string,
   userEmail: string,
 ): Promise<string> {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.aisticker.pics";
   const apiKey = process.env.CREEM_API_KEY;
 
-  // 先尝试 API 方式
+  // 使用 Creem API 创建 checkout session
   if (apiKey) {
     try {
       const response = await fetch("https://api.creem.io/v1/checkouts", {
@@ -42,28 +42,26 @@ export async function getCheckoutUrl(
         },
         body: JSON.stringify({
           product_id: productId,
-          success_url: `${baseUrl}/settings?checkout=success`,
-          cancel_url: `${baseUrl}/pricing?checkout=cancelled`,
+          metadata: {
+            user_email: userEmail,
+          },
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        // API 返回的 checkout_url 应该是字符串，如果不是则降级
         if (typeof data.checkout_url === 'string' && data.checkout_url) {
           return data.checkout_url;
         }
+      } else {
+        const errText = await response.text();
+        console.error('[Creem API] 创建 checkout 失败:', response.status, errText);
       }
-    } catch {
-      // API 调用失败，降级到托管 URL
+    } catch (err) {
+      console.error('[Creem API] 网络错误:', err);
     }
   }
 
-  // 降级：使用 Creem 托管 Checkout URL
-  const params = new URLSearchParams({
-    email: userEmail,
-    success_url: `${baseUrl}/settings?checkout=success`,
-    cancel_url: `${baseUrl}/pricing?checkout=cancelled`,
-  });
-  return `https://www.creem.io/checkout/${productId}?${params.toString()}`;
+  // 降级：直接返回 Creem 产品页（用户需要在 Creem 上完成支付）
+  return `https://www.creem.io/checkout/${productId}`;
 }
