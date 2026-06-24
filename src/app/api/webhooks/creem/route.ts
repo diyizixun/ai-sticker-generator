@@ -8,11 +8,18 @@ export async function POST(request: NextRequest) {
   try {
     const payload = await request.text();
     const signature = request.headers.get("creem-signature") || "";
+    const creemSignatureV1 = request.headers.get("creem-signature-v1") || "";
 
-    // 验证 webhook 签名
-    const isValid = verifyCreemWebhookSignature(payload, signature);
+    console.log("[Creem Webhook] Received payload length:", payload.length);
+    console.log("[Creem Webhook] Headers - creem-signature:", signature ? "present" : "missing");
+    console.log("[Creem Webhook] Headers - creem-signature-v1:", creemSignatureV1 ? "present" : "missing");
+
+    // 验证 webhook 签名（尝试两种可能的 header）
+    const isValid = verifyCreemWebhookSignature(payload, signature) ||
+                    verifyCreemWebhookSignature(payload, creemSignatureV1);
+
     if (!isValid) {
-      console.error("Invalid Creem webhook signature");
+      console.error("[Creem Webhook] Invalid signature");
       return NextResponse.json(
         { error: "Invalid signature" },
         { status: 400 }
@@ -20,14 +27,16 @@ export async function POST(request: NextRequest) {
     }
 
     const event = JSON.parse(payload);
-    console.log("Creem webhook event:", event.type, JSON.stringify(event.data));
+    console.log("[Creem Webhook] Event type:", event.type);
+    console.log("[Creem Webhook] Event data:", JSON.stringify(event.data));
+    console.log("[Creem Webhook] Full event:", JSON.stringify(event, null, 2));
 
     // 处理支付成功事件
-    // Creem event types: checkout.paid, subscription.paid, etc.
+    // Creem event types: checkout.completed, subscription.paid, etc.
     if (
-      event.type === "checkout.paid" ||
+      event.type === "checkout.completed" ||
       event.type === "subscription.paid" ||
-      event.type === "payment.succeeded"
+      event.type === "checkout.paid"
     ) {
       // 从 metadata 中获取用户 email（创建 checkout 时传入）
       const userEmail =
