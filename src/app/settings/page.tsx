@@ -47,6 +47,15 @@ export default function SettingsPage() {
       .then(setData)
       .catch(() => null)
       .finally(() => setLoading(false));
+
+    // 检查是否有 checkout 成功参数，自动刷新
+    const urlParams = new URLSearchParams(window.location.search);
+    const checkoutStatus = urlParams.get("checkout");
+    if (checkoutStatus === "success") {
+      setTimeout(() => {
+        window.location.href = window.location.pathname;
+      }, 2000);
+    }
   }, []);
 
   const handleUpgrade = async (priceType: "monthly" | "yearly") => {
