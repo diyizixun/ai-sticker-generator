@@ -50,6 +50,7 @@ export async function getCheckoutUrl(
 
       if (response.ok) {
         const data = await response.json();
+        console.log('[Creem API] 创建 checkout 成功:', JSON.stringify(data));
         if (typeof data.checkout_url === 'string' && data.checkout_url) {
           return data.checkout_url;
         }
@@ -63,5 +64,6 @@ export async function getCheckoutUrl(
   }
 
   // 降级：直接返回 Creem 产品页（用户需要在 Creem 上完成支付）
+  console.log('[Creem API] 降级到托管 checkout 页面');
   return `https://www.creem.io/checkout/${productId}`;
 }
