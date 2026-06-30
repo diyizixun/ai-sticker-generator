@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
 // 从 cookie 获取当前登录用户 email
 function getSessionEmail(request: Request): string | null {
@@ -15,9 +15,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ isPro: false });
     }
 
-    const supabase = createClient();
+    if (!supabaseAdmin) {
+      console.error("Supabase admin client not initialized");
+      return NextResponse.json({ isPro: false });
+    }
 
-    const { data: profile, error } = await supabase
+    const { data: profile, error } = await supabaseAdmin
       .from("profiles")
       .select("is_pro, pro_since")
       .eq("email", email)
