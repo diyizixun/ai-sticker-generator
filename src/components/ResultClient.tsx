@@ -5,7 +5,7 @@ import { useSession } from "@/hooks/useSession";
 import { STYLES } from "@/lib/config";
 import StickerImage from "@/components/StickerImage";
 import LoginModal from "@/components/LoginModal";
-import { incrementLocalQuota } from "@/lib/clientQuota";
+import { getLocalQuota, incrementLocalQuota } from "@/lib/clientQuota";
 import QuotaLimitNotice from "@/components/QuotaLimitNotice";
 
 interface ResultClientProps {
@@ -29,12 +29,19 @@ export default function ResultClient({
   const [quota, setQuota] = useState<{ remaining: number; limit: number } | null>(null);
   const [loginOpen, setLoginOpen] = useState(false);
 
+  // 获取配额：登录用户走 API（DB），匿名用户走 localStorage（服务端内存在 Vercel 冷启动后会重置，不可靠）
   useEffect(() => {
-    fetch("/api/quota")
-      .then((r) => r.json())
-      .then((d) => setQuota(d))
-      .catch(() => {});
-  }, [regenerateKey]);
+    if (status === "loading") return;
+    if (status === "authenticated" && session?.email) {
+      fetch("/api/quota")
+        .then((r) => r.json())
+        .then((d) => setQuota(d))
+        .catch(() => {});
+    } else {
+      // 匿名用户：localStorage 是唯一数据源
+      setQuota(getLocalQuota());
+    }
+  }, [regenerateKey, status, session]);
 
   const triggerDownload = () => {
     if (!generatedUrl) return;
@@ -62,12 +69,15 @@ export default function ResultClient({
     setTimeout(() => triggerDownload(), 300);
   };
 
-  // 生成完成后立刻更新 quota（不等图片加载）
+  // 生成完成后更新 quota（每次成功生成扣一次）
   const handleQuotaUpdate = (remaining: number, limit: number) => {
-    setQuota({ remaining, limit });
-    // 匿名用户：同步写入 localStorage，返回首页时也能显示正确数字
-    if (!session?.email) {
-      incrementLocalQuota();
+    if (session?.email) {
+      // 登录用户：使用服务端返回的 DB 配额（可信）
+      setQuota({ remaining, limit });
+    } else {
+      // 匿名用户：localStorage 是唯一数据源，成功生成后扣一次
+      const newQuota = incrementLocalQuota();
+      setQuota(newQuota);
     }
   };
 

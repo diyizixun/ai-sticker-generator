@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { ImageIcon, Sparkles, ChevronDown, Wand2, Loader2 } from "lucide-react";
 import { STYLES } from "@/lib/config";
 import { clsx } from "clsx";
-import { getLocalQuota, incrementLocalQuota } from "@/lib/clientQuota";
+import { getLocalQuota } from "@/lib/clientQuota";
 import { useSession } from "@/hooks/useSession";
 import QuotaLimitNotice from "@/components/QuotaLimitNotice";
 
@@ -76,11 +76,7 @@ export default function StickerGenerator({ initialPrompt }: StickerGeneratorProp
 
   const handleGenerate = async () => {
     if (mode === "text") {
-      // 匿名用户：跳转前先在 localStorage 扣一次 quota，让返回时显示正确
-      if (status !== "authenticated") {
-        const newQuota = incrementLocalQuota();
-        setQuota(newQuota);
-      }
+      // 不在此处扣 quota —— 由结果页 /api/generate 成功后统一扣一次，避免双重计数
       window.location.href = `/result?p=${encodeURIComponent(prompt.trim())}&s=${selectedStyle}`;
       return;
     }

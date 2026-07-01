@@ -254,7 +254,7 @@ export async function GET(req: NextRequest) {
       .update({ total_generations: (u?.total_generations || 0) + 1 })
       .eq("email", session);
 
-    // 重新计算剩余额度
+    // 重新计算剩余额度（登录免费用户限额为 10，不是 5）
     const today = new Date().toISOString().split("T")[0];
     const { count } = await supabaseAdmin!
       .from("generations")
@@ -262,7 +262,7 @@ export async function GET(req: NextRequest) {
       .eq("user_email", session)
       .gte("created_at", `${today}T00:00:00Z`)
       .lt("created_at", `${today}T23:59:59Z`);
-    remaining = quotaInfo.isPro ? 9999 : Math.max(0, 5 - (count || 0));
+    remaining = quotaInfo.isPro ? 9999 : Math.max(0, quotaInfo.limit - (count || 0));
   } else {
     // 匿名用户：内存 +1
     const clientId = getClientId(req);
@@ -273,7 +273,7 @@ export async function GET(req: NextRequest) {
     success: true,
     imageUrl: result,
     source,
-    quota: { remaining, limit: quotaInfo.isPro ? 9999 : 5 },
+    quota: { remaining, limit: quotaInfo.limit },
   });
 }
 
