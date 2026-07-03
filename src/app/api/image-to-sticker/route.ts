@@ -52,7 +52,8 @@ async function moderatePrompt(prompt: string, userId?: string): Promise<{ allowe
     if (e.name === "AbortError") {
       console.error("Moderation API timeout");
     }
-    return { allowed: false, reason: "moderation_unavailable" };
+    console.warn("Creem moderation unavailable, allowing request");
+    return { allowed: true };
   }
 }
 

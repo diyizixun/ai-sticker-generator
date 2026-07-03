@@ -14,6 +14,8 @@ interface StickerImageProps {
 }
 
 export default function StickerImage({
+  userPrompt,
+  styleId,
   fullPrompt,
   alt,
   className = "",
@@ -33,7 +35,7 @@ export default function StickerImage({
     try {
       const params = new URLSearchParams({
         prompt: fullPrompt,
-        style: "cute",
+        style: styleId,
       });
       const res = await fetch(`/api/generate?${params.toString()}`, {
         method: "GET",
@@ -67,36 +69,7 @@ export default function StickerImage({
   }, [generate, retryCount]);
 
   // 图片加载完成 → 转成 dataURL 供下载
-  const handleLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
-    setLoading(false);
-    setLoadError(false);
-    try {
-      const img = e.currentTarget;
-      const canvas = document.createElement("canvas");
-      canvas.width = img.naturalWidth || 512;
-      canvas.height = img.naturalHeight || 512;
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.drawImage(img, 0, 0);
-        try {
-          const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
-          if (onImageReady) onImageReady(dataUrl);
-          if (dataUrl.startsWith("data:")) {
-            // 如果是 data URL 则直接设置（给 <img src> 用）
-            if (!dataUrl.startsWith("data:")) {
-              // 已经是 http URL，不需要再转换
-            }
-          }
-        } catch {
-          if (onImageReady) onImageReady(img.src);
-        }
-      }
-    } catch {
-      if (onImageReady && dataUrl) onImageReady(dataUrl);
-    }
-  }, [onImageReady, dataUrl]);
-
-  const handleImgLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
+  const handleImageReady = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     setLoading(false);
     setLoadError(false);
     try {
@@ -173,7 +146,7 @@ export default function StickerImage({
           alt={alt}
           className={`${className} ${loading ? "opacity-0" : "opacity-100"} transition-opacity duration-300`}
           style={style}
-          onLoad={handleImgLoad}
+          onLoad={handleImageReady}
           onError={() => setLoadError(true)}
           crossOrigin="anonymous"
         />

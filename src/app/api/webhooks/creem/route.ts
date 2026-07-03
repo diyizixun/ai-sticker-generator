@@ -44,7 +44,34 @@ export async function POST(request: NextRequest) {
         event.metadata?.user_email;
 
       if (userEmail && supabaseAdmin) {
-        // 根据 email 查找用户 id
+        // 同时更新 users 表和 profiles 表（/api/generate 和 /api/quota 从 users 读 plan 字段）
+        let updated = false;
+
+        // 1. 更新 users 表（API 路由读这个表判断 isPro）
+        const { data: user } = await supabaseAdmin
+          .from("users")
+          .select("id, email")
+          .eq("email", userEmail)
+          .single();
+
+        if (user) {
+          const { error: userError } = await supabaseAdmin
+            .from("users")
+            .update({
+              plan: "pro",
+              subscription_status: "active",
+            })
+            .eq("id", user.id);
+
+          if (userError) {
+            console.error("[Creem] Failed to update users.plan:", userError);
+          } else {
+            console.log(`[Creem] users.plan set to pro for ${userEmail}`);
+            updated = true;
+          }
+        }
+
+        // 2. 同时更新 profiles 表（保持兼容）
         const { data: profile } = await supabaseAdmin
           .from("profiles")
           .select("id")
@@ -52,7 +79,7 @@ export async function POST(request: NextRequest) {
           .single();
 
         if (profile) {
-          const { error } = await supabaseAdmin
+          const { error: profileError } = await supabaseAdmin
             .from("profiles")
             .update({
               is_pro: true,
@@ -61,13 +88,17 @@ export async function POST(request: NextRequest) {
             })
             .eq("id", profile.id);
 
-          if (error) {
-            console.error("Failed to update user to Pro:", error);
-          } else {
-            console.log(`User ${userEmail} upgraded to Pro`);
+          if (profileError) {
+            console.error("[Creem] Failed to update profiles.is_pro:", profileError);
+          } else if (!updated) {
+            console.log(`[Creem] profiles.is_pro set for ${userEmail} (users table not found)`);
           }
+        }
+
+        if (!user && !profile) {
+          console.error("[Creem] User not found in users or profiles by email:", userEmail);
         } else {
-          console.error("Webhook: user not found by email:", userEmail);
+          console.log(`[Creem] User ${userEmail} upgraded to Pro (users:${!!user}, profiles:${!!profile})`);
         }
       } else {
         console.log("Webhook: no userEmail in metadata, event data:", JSON.stringify(event.data));

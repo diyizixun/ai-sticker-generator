@@ -2,7 +2,7 @@
 // 优先级: Replicate → Pollinations → OpenAI → HuggingFace
 
 import { NextRequest, NextResponse } from "next/server";
-import { getClientId, checkQuota, incrementQuota } from "@/lib/quota";
+import { getClientId, checkQuota } from "@/lib/quota";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 const STYLE_PROMPTS: Record<string, string> = {
@@ -35,7 +35,9 @@ async function moderatePrompt(prompt: string, userId?: string): Promise<{ allowe
     }
     return { allowed: true };
   } catch {
-    return { allowed: false, reason: "moderation_unavailable" };
+    // 审核超时/不可用时放行（避免审核服务故障阻塞所有生成）
+    console.warn("Creem moderation unavailable, allowing request");
+    return { allowed: true };
   }
 }
 
@@ -82,7 +84,8 @@ async function generateWithHuggingFace(prompt: string): Promise<string> {
 
 // Pollinations AI
 async function generateWithPollinations(prompt: string): Promise<string> {
-  const apiKey = process.env.POLLINATIONS_API_KEY || "sk_08ggRC32YTLnHTphGv4SAF3S6N832PCl";
+  const apiKey = process.env.POLLINATIONS_API_KEY;
+  if (!apiKey) throw new Error("POLLINATIONS_API_KEY not set");
   const encoded = encodeURIComponent(prompt);
   const seed = Math.floor(Math.random() * 100000);
   const url = `https://gen.pollinations.ai/image/${encoded}?width=512&height=512&model=flux&seed=${seed}&key=${apiKey}`;
@@ -243,16 +246,21 @@ export async function GET(req: NextRequest) {
         created_at: new Date().toISOString(),
       });
 
-    // 更新 users 表 total_generations
-    const { data: u } = await supabaseAdmin!
-      .from("users")
-      .select("total_generations")
-      .eq("email", session)
-      .single();
-    await supabaseAdmin!
-      .from("users")
-      .update({ total_generations: (u?.total_generations || 0) + 1 })
-      .eq("email", session);
+    // 更新 users 表 total_generations（非关键计数器，轻微竞态风险可接受）
+    try {
+      const { data: u } = await supabaseAdmin!
+        .from("users")
+        .select("total_generations")
+        .eq("email", session)
+        .single();
+      const next = (u?.total_generations || 0) + 1;
+      await supabaseAdmin!
+        .from("users")
+        .update({ total_generations: next })
+        .eq("email", session);
+    } catch (e) {
+      console.warn("Failed to increment total_generations for", session, e);
+    }
 
     // 重新计算剩余额度（登录免费用户限额为 10，不是 5）
     const today = new Date().toISOString().split("T")[0];
@@ -264,9 +272,9 @@ export async function GET(req: NextRequest) {
       .lt("created_at", `${today}T23:59:59Z`);
     remaining = quotaInfo.isPro ? 9999 : Math.max(0, quotaInfo.limit - (count || 0));
   } else {
-    // 匿名用户：内存 +1
-    const clientId = getClientId(req);
-    remaining = incrementQuota(clientId);
+    // 匿名用户：仅客户端 localStorage 计数（服务端内存在 Vercel 冷启后会重置，由 ResultClient 扣）
+    // 返回配额时不减，客户端会在成功回调里自己扣
+    remaining = quotaInfo.remaining - 1;
   }
 
   return NextResponse.json({
