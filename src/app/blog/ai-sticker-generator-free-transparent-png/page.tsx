@@ -106,7 +106,7 @@ export default function AISstickerGeneratorFreePost() {
         </ol>
 
         <h2>Start Creating Free Stickers Today</h2>
-        <p>Ready to create your first AI sticker? Try our <a href="https://aisticker.pics">free AI sticker generator</a> — no signup required for basic JPG downloads.</p>
+        <p>Ready to create your first AI sticker? Try our <a href="https://www.aisticker.pics">free AI sticker generator</a> — no signup required for basic JPG downloads.</p>
 
         <p><strong>Upgrade to Pro</strong> for just $9.9/month to unlock:</p>
         <ul>

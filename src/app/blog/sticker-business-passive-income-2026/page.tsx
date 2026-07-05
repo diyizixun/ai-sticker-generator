@@ -46,7 +46,7 @@ export default function PassiveIncomeBlogPost() {
         <h3>Step 1: Generate Designs with AI</h3>
         <p><strong>AI way (do this):</strong></p>
         <ul>
-          <li>Subscribe to <a href="https://aisticker.pics">AI Sticker Generator Pro</a> ($9.9/mo)</li>
+          <li>Subscribe to <a href="https://www.aisticker.pics">AI Sticker Generator Pro</a> ($9.9/mo)</li>
           <li>Generate 100 stickers in 2-3 hours</li>
           <li>Download as transparent PNG (commercial license included)</li>
         </ul>
@@ -93,7 +93,7 @@ export default function PassiveIncomeBlogPost() {
         <h2>Start Your Passive Income Journey Today</h2>
         <p><strong>Week 1 Action Plan:</strong></p>
         <ul>
-          <li>Subscribe to <a href="https://aisticker.pics">AI Sticker Generator Pro</a> ($9.9)</li>
+          <li>Subscribe to <a href="https://www.aisticker.pics">AI Sticker Generator Pro</a> ($9.9)</li>
           <li>Generate 50 sticker designs</li>
           <li>Set up Etsy store</li>
           <li>List first 20 stickers with SEO titles</li>

@@ -59,7 +59,7 @@ export default function PrintReadyStickersPost() {
         <h3>Step 2: Generate Sticker Designs</h3>
         <p>Use AI Sticker Generator to create designs:</p>
         <ol>
-          <li><strong>Visit</strong> <a href="https://aisticker.pics">aisticker.pics</a></li>
+          <li><strong>Visit</strong> <a href="https://www.aisticker.pics">aisticker.pics</a></li>
           <li><strong>Enter prompt</strong>: &quot;succulent in pot, kawaii style, sticker art, bold outlines&quot;</li>
           <li><strong>Generate</strong> 4+ variations</li>
           <li><strong>Download</strong> as transparent PNG (Pro feature)</li>
@@ -98,7 +98,7 @@ export default function PrintReadyStickersPost() {
         </table>
 
         <h2>Start Your POD Sticker Business Today</h2>
-        <p><strong>Step 1</strong>: Create 20 sticker designs with <a href="https://aisticker.pics">AI Sticker Generator Pro</a> ($9.9/mo)</p>
+        <p><strong>Step 1</strong>: Create 20 sticker designs with <a href="https://www.aisticker.pics">AI Sticker Generator Pro</a> ($9.9/mo)</p>
         <p><strong>Step 2</strong>: Set up POD accounts (Etsy, Redbubble, Amazon Merch)</p>
         <p><strong>Step 3</strong>: List and optimize with KGR keywords</p>
         <p><strong>Step 4</strong>: Scale with SEO blog content</p>

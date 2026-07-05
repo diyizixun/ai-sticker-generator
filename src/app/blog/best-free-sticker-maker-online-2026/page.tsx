@@ -116,7 +116,7 @@ export default function BestFreeStickerMakerPost() {
 
         <h2>Step-by-Step: Create Your First Sticker in 2026</h2>
         <ol>
-          <li><strong>Visit</strong> <a href="https://aisticker.pics">aisticker.pics</a></li>
+          <li><strong>Visit</strong> <a href="https://www.aisticker.pics">aisticker.pics</a></li>
           <li><strong>Describe</strong> your sticker: &quot;cute panda drinking bubble tea, kawaii style, sticker art&quot;</li>
           <li><strong>Generate</strong> — wait 5-10 seconds</li>
           <li><strong>Choose</strong> your favorite from 4 variations</li>

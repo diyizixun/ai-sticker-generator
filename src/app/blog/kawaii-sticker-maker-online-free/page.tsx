@@ -52,7 +52,7 @@ export default function KawaiiStickerPost() {
 
         <h3>Step 2: Generate & Select</h3>
         <ol>
-          <li><strong>Visit</strong> <a href="https://aisticker.pics">aisticker.pics</a></li>
+          <li><strong>Visit</strong> <a href="https://www.aisticker.pics">aisticker.pics</a></li>
           <li><strong>Enter prompt</strong>: &quot;kawaii panda holding bubble tea&quot;</li>
           <li><strong>Generate</strong> 4+ variations</li>
           <li><strong>Download</strong> JPG (free) or PNG (Pro)</li>

@@ -61,7 +61,7 @@ export default function TransparentPNGBlogPost() {
         <h2>How to Generate Transparent PNG Stickers (No Watermark)</h2>
         <h3>Using AI Sticker Generator Pro:</h3>
         <ol>
-          <li><strong>Sign up</strong> for Pro at <a href="https://aisticker.pics">aisticker.pics</a> ($9.9/mo)</li>
+          <li><strong>Sign up</strong> for Pro at <a href="https://www.aisticker.pics">aisticker.pics</a> ($9.9/mo)</li>
           <li><strong>Enter prompt</strong>: &quot;golden retriever puppy, kawaii style, sticker art&quot;</li>
           <li><strong>Generate</strong> 4+ variations</li>
           <li><strong>Download</strong> as transparent PNG (no watermark)</li>
