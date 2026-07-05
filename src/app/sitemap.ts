@@ -4,7 +4,7 @@ import fs from "fs";
 import path from "path";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = "https://aisticker.pics";
+  const baseUrl = "https://www.aisticker.pics";
 
   // 动态读取所有 blog 页面
   const blogDir = path.join(process.cwd(), "src/app/blog");

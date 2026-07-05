@@ -7,8 +7,26 @@ export const metadata: Metadata = {
     "Learn how to create amazing AI stickers. Tips for writing prompts, using different styles, and selling stickers on Redbubble, Etsy & more.",
 };
 
+const MONTHS: Record<string, number> = {
+  January: 1, February: 2, March: 3, April: 4, May: 5, June: 6,
+  July: 7, August: 8, September: 9, October: 10, November: 11, December: 12,
+};
+
+function parseDate(s: string): number {
+  const parts = s.replace(",", "").split(" ");
+  if (parts.length >= 3) {
+    const m = MONTHS[parts[0]] || 0;
+    const day = parseInt(parts[1], 10);
+    const year = parseInt(parts[2], 10);
+    if (m > 0 && day > 0 && year > 0) {
+      return new Date(year, m - 1, day).getTime();
+    }
+  }
+  return 0;
+}
+
 export default function BlogPage() {
-  const posts = postsData as Array<{
+  const allPosts = postsData as Array<{
     slug: string;
     title: string;
     excerpt: string;
@@ -16,6 +34,9 @@ export default function BlogPage() {
     category: string;
     readTime: string;
   }>;
+
+  // Sort by date descending (newest first)
+  const posts = [...allPosts].sort((a, b) => parseDate(b.date) - parseDate(a.date));
 
   return (
     <div className="min-h-screen bg-white">

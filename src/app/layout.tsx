@@ -69,7 +69,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} h-full antialiased`}>
       <head>
-        <link rel="canonical" href="https://aisticker.pics" />
+        <link rel="canonical" href="https://www.aisticker.pics" />
         {/* Temporarily disabled for debugging
         <GoogleAnalytics />
         <GoogleAdSense />

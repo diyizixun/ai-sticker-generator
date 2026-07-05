@@ -136,7 +136,7 @@ export default function TermsOfService() {
         <ul>
           <li>Email: 332847952@qq.com</li>
           <li>Support: support@aisticker.pics</li>
-          <li>Website: <a href="https://aisticker.pics">aisticker.pics</a></li>
+          <li>Website: <a href="https://www.aisticker.pics">aisticker.pics</a></li>
         </ul>
       </main>
     </div>

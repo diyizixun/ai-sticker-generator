@@ -192,7 +192,7 @@ export default function AboutPage() {
           </p>
           <ul className="mt-3 space-y-2 text-gray-700">
             <li>📧 Email: <a href="mailto:support@aisticker.pics" className="text-purple-600 hover:underline">support@aisticker.pics</a></li>
-            <li>🏠 Website: <a href="https://aisticker.pics" className="text-purple-600 hover:underline">aisticker.pics</a></li>
+            <li>🏠 Website: <a href="https://www.aisticker.pics" className="text-purple-600 hover:underline">aisticker.pics</a></li>
           </ul>
           <p className="text-sm text-gray-500 mt-4">
             We typically respond to support emails within 48 hours.

@@ -7,6 +7,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: "/",
       disallow: ["/api/"],
     },
-    sitemap: "https://aisticker.pics/sitemap.xml", // 域名注册后替换
+    sitemap: "https://www.aisticker.pics/sitemap.xml",
   };
 }

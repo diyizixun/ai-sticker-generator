@@ -72,7 +72,7 @@ export default function Footer() {
             © {year} AI Sticker Generator. All rights reserved.
           </p>
           <p className="text-xs text-gray-400">
-            Powered by AI · <a href="https://aisticker.pics" className="hover:text-purple-600 transition">aisticker.pics</a>
+            Powered by AI · <a href="https://www.aisticker.pics" className="hover:text-purple-600 transition">aisticker.pics</a>
           </p>
         </div>
       </div>
