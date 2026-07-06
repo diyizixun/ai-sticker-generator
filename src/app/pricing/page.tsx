@@ -1,13 +1,61 @@
 "use client";
 
-import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Loader2, CheckCircle, XCircle, RefreshCw } from "lucide-react";
 
 export default function PricingPage() {
   const [checkoutLoading, setCheckoutLoading] = useState<"monthly" | "yearly" | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<"idle" | "verifying" | "success" | "failed">("idle");
+  const [isAlreadyPro, setIsAlreadyPro] = useState(false);
 
   const monthlyProductId = process.env.NEXT_PUBLIC_CREEM_PRO_MONTHLY_PRODUCT_ID || "prod_7OurPpIwMMeub80vPOxl6F";
   const yearlyProductId = process.env.NEXT_PUBLIC_CREEM_PRO_YEARLY_PRODUCT_ID || "prod_3cy26xwgYp3NTUwgQEyeVa";
+
+  // 检测支付完成回跳 + 轮询 Pro 状态
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const isPaid = params.get("paid") === "1";
+
+    if (!isPaid) return;
+
+    // 清理 URL 参数（避免刷新时重复轮询）
+    const url = new URL(window.location.href);
+    url.searchParams.delete("paid");
+    url.searchParams.delete("email");
+    window.history.replaceState({}, "", url.toString());
+
+    setPaymentStatus("verifying");
+
+    let attempts = 0;
+    const maxAttempts = 20;
+    const intervalMs = 2000;
+
+    const poll = setInterval(async () => {
+      attempts++;
+      try {
+        const res = await fetch("/api/checkout/status", { credentials: "include" });
+        const data = await res.json();
+
+        if (data.isPro) {
+          clearInterval(poll);
+          setPaymentStatus("success");
+          setIsAlreadyPro(true);
+          console.log("[Pricing] ✅ Payment verified — Pro activated!");
+          return;
+        }
+      } catch {
+        // 继续轮询
+      }
+
+      if (attempts >= maxAttempts) {
+        clearInterval(poll);
+        setPaymentStatus("failed");
+        console.log("[Pricing] ⚠️ Payment verification timed out — webhook may be delayed");
+      }
+    }, intervalMs);
+
+    return () => clearInterval(poll);
+  }, []);
 
   const handleUpgrade = async (priceType: "monthly" | "yearly") => {
     setCheckoutLoading(priceType);
@@ -48,6 +96,46 @@ export default function PricingPage() {
           <a href="/" className="text-sm text-purple-600 hover:underline">← Back</a>
         </div>
       </header>
+
+      {/* 支付状态提示横幅 */}
+      {paymentStatus === "verifying" && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-4">
+          <div className="max-w-4xl mx-auto flex items-center gap-3">
+            <RefreshCw className="h-5 w-5 text-amber-600 animate-spin" />
+            <div>
+              <p className="text-sm font-medium text-amber-800">Verifying your payment...</p>
+              <p className="text-xs text-amber-600">This usually takes a few seconds. Please don't close this page.</p>
+            </div>
+          </div>
+        </div>
+      )}
+      {paymentStatus === "success" && (
+        <div className="bg-green-50 border-b border-green-200 px-4 py-4">
+          <div className="max-w-4xl mx-auto flex items-center gap-3">
+            <CheckCircle className="h-5 w-5 text-green-600" />
+            <div>
+              <p className="text-sm font-medium text-green-800">✅ Payment successful! You're now a Pro member.</p>
+              <p className="text-xs text-green-600">
+                <a href="/" className="underline hover:no-underline">Go to home →</a> to start creating unlimited stickers with transparent PNGs.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      {paymentStatus === "failed" && (
+        <div className="bg-red-50 border-b border-red-200 px-4 py-4">
+          <div className="max-w-4xl mx-auto flex items-center gap-3">
+            <XCircle className="h-5 w-5 text-red-600" />
+            <div>
+              <p className="text-sm font-medium text-red-800">Payment verification is taking longer than expected.</p>
+              <p className="text-xs text-red-600">
+                If you completed payment, your Pro access may already be active.{' '}
+                <a href="/" className="underline hover:no-underline">Go to home →</a> to check. Contact support if the issue persists.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <main className="max-w-4xl mx-auto px-4 py-16">
         <div className="text-center mb-12">

@@ -34,6 +34,7 @@ export async function getCheckoutUrl(
   // 使用 Creem API 创建 checkout session
   if (apiKey) {
     try {
+      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.aisticker.pics";
       const response = await fetch("https://api.creem.io/v1/checkouts", {
         method: "POST",
         headers: {
@@ -42,6 +43,9 @@ export async function getCheckoutUrl(
         },
         body: JSON.stringify({
           product_id: productId,
+          request_id: `user_${userEmail}_${Date.now()}`,
+          success_url: `${baseUrl}/pricing?paid=1`,
+          cancel_url: `${baseUrl}/pricing`,
           metadata: {
             user_email: userEmail,
           },
