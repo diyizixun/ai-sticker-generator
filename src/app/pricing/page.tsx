@@ -14,13 +14,21 @@ export default function PricingPage() {
   // 检测支付完成回跳 + 轮询 Pro 状态
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const isPaid = params.get("paid") === "1";
+    // ✅ Creem 回调带 checkout_id / order_id 参数（不是 paid=1）
+    const isPaid = params.get("checkout_id") || params.get("order_id") || params.get("paid");
 
     if (!isPaid) return;
 
     // 清理 URL 参数（避免刷新时重复轮询）
     const url = new URL(window.location.href);
     url.searchParams.delete("paid");
+    url.searchParams.delete("checkout_id");
+    url.searchParams.delete("order_id");
+    url.searchParams.delete("customer_id");
+    url.searchParams.delete("subscription_id");
+    url.searchParams.delete("product_id");
+    url.searchParams.delete("request_id");
+    url.searchParams.delete("signature");
     url.searchParams.delete("email");
     window.history.replaceState({}, "", url.toString());
 
