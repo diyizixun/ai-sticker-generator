@@ -25,8 +25,12 @@ export const CREEM_PRODUCTS = {
 // 创建Checkout链接
 // 使用 Creem API 创建 checkout session，获取 checkout_url 重定向用户
 // 官方文档: https://docs.creem.io/features/checkout/checkout-api
-// 认证头必须用 Authorization: Bearer（不是 x-api-key）
-// 响应字段是 checkout_url（snake_case），托管 checkout URL 格式: https://checkout.creem.io/p/{product_id}
+//
+// ✅ 实测确认（2026-07-08）：
+// - 认证头：x-api-key（不是 Authorization: Bearer！）
+// - 响应字段：checkout_url（snake_case）
+// - checkout_url 格式：https://creem.io/checkout/{product_id}/{checkout_id}
+//   （既不是 checkout.creem.io/p/{id}，也不是 checkout.creem.io/{id}）
 export async function getCheckoutUrl(
   productId: string,
   userEmail: string,
@@ -40,15 +44,15 @@ export async function getCheckoutUrl(
       const response = await fetch("https://api.creem.io/v1/checkouts", {
         method: "POST",
         headers: {
-          // ✅ 修正：官方文档用 Authorization: Bearer，不是 x-api-key
-          "Authorization": `Bearer ${apiKey}`,
+          // ✅ 官方文档 + 实测确认：x-api-key，不是 Authorization: Bearer
+          "x-api-key": apiKey,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           product_id: productId,
           request_id: `user_${userEmail}_${Date.now()}`,
           success_url: `${baseUrl}/pricing?checkout_id={CHECKOUT_ID}`,
-          // ✅ customer.email 是 Creem 原生字段，比 metadata 更可靠
+          // customer.email 是 Creem 原生字段
           customer: {
             email: userEmail,
           },
@@ -61,7 +65,7 @@ export async function getCheckoutUrl(
       if (response.ok) {
         const data = await response.json();
         console.log('[Creem API] 创建 checkout 成功:', JSON.stringify(data));
-        // ✅ 响应字段是 checkout_url（snake_case），SDK 才是 checkoutUrl
+        // ✅ 响应字段是 checkout_url（snake_case）
         if (typeof data.checkout_url === 'string' && data.checkout_url) {
           return data.checkout_url;
         }
@@ -78,7 +82,8 @@ export async function getCheckoutUrl(
     }
   }
 
-  // 降级：使用 Creem 托管 checkout 页面（正确格式是 checkout.creem.io/p/{product_id}）
+  // 降级：直接用 creem.io/checkout/{product_id}（实测可访问的基础格式）
+  // 注意：不带 checkout_id 也能跳转，Creem 会自动生成
   console.log('[Creem API] 降级到托管 checkout 页面');
-  return `https://checkout.creem.io/p/${productId}`;
+  return `https://creem.io/checkout/${productId}`;
 }
