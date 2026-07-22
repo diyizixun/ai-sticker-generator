@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 
 interface StickerImageProps {
   userPrompt: string;
@@ -27,14 +27,20 @@ export default function StickerImage({
   const [loadError, setLoadError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
+  const autoRetried = useRef(false);
+
+  // 用 ref 存回调，避免回调变化导致 generate 重建引发无限循环
+  const onQuotaUpdateRef = useRef(onQuotaUpdate);
+  onQuotaUpdateRef.current = onQuotaUpdate;
 
   // 调用 /api/generate 生成图片
+  // 传 userPrompt（非 fullPrompt），由 API 端拼接 style，避免双重拼接
   const generate = useCallback(async () => {
     setLoading(true);
     setLoadError(false);
     try {
       const params = new URLSearchParams({
-        prompt: fullPrompt,
+        prompt: userPrompt,
         style: styleId,
       });
       const res = await fetch(`/api/generate?${params.toString()}`, {
@@ -50,18 +56,24 @@ export default function StickerImage({
       if (json.success && json.imageUrl) {
         setDataUrl(json.imageUrl);
         // 立刻通知父组件更新 quota（不等图片加载）
-        if (json.quota && onQuotaUpdate) {
-          onQuotaUpdate(json.quota.remaining, json.quota.limit);
+        if (json.quota && onQuotaUpdateRef.current) {
+          onQuotaUpdateRef.current(json.quota.remaining, json.quota.limit);
         }
       } else {
         throw new Error(json.error || "Generation failed");
       }
     } catch (e: any) {
       console.error("StickerImage generate error:", e.message);
+      // 首次失败自动重试一次（2 秒后），避免用户手动点
+      if (!autoRetried.current) {
+        autoRetried.current = true;
+        setTimeout(() => setRetryCount((c) => c + 1), 2000);
+        return;
+      }
       setLoadError(true);
       setLoading(false);
     }
-  }, [fullPrompt]);
+  }, [userPrompt, styleId]);
 
   // 初始生成 + retry 时重新生成
   useEffect(() => {

@@ -1,6 +1,6 @@
 // 免费用户日生成额度控制（IP-based，无需登录）
 
-const FREE_DAILY_LIMIT = 5; // 每天免费生成次数
+const FREE_DAILY_LIMIT = 10; // 每天免费生成次数
 
 interface QuotaEntry {
   count: number;

@@ -41,48 +41,7 @@ async function moderatePrompt(prompt: string, userId?: string): Promise<{ allowe
   }
 }
 
-// HuggingFace 免费 Inference API（无需 key，有公共免费额度）
-async function generateWithHuggingFace(prompt: string): Promise<string> {
-  const hfToken = process.env.HUGGINGFACE_API_TOKEN;
-  const models = [
-    "black-forest-labs/FLUX.1-schnell",
-    "stabilityai/stable-diffusion-xl-base-1.0",
-    "runwayml/stable-diffusion-v1-5",
-  ];
-  for (const model of models) {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 8000);
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-        "Accept": "image/png,image/jpeg,image/*",
-      };
-      if (hfToken) headers["Authorization"] = `Bearer ${hfToken}`;
-      const endpoint = model.startsWith("black-forest-labs")
-        ? `https://router.huggingface.co/hf-inference/models/${model}/v1/text-to-image`
-        : `https://api-inference.huggingface.co/models/${model}`;
-      const body = model.startsWith("black-forest-labs")
-        ? JSON.stringify({ inputs: prompt, parameters: { num_inference_steps: 4, width: 512, height: 512 } })
-        : JSON.stringify({ inputs: prompt, parameters: { width: 512, height: 512 } });
-      const response = await fetch(endpoint, { method: "POST", headers, body, signal: controller.signal });
-      clearTimeout(timeout);
-      if (response.status === 503) continue;
-      if (!response.ok) continue;
-      const contentType = response.headers.get("content-type") || "";
-      if (!contentType.includes("image")) continue;
-      const buffer = Buffer.from(await response.arrayBuffer());
-      if (buffer.length < 5000) continue;
-      const ext = contentType.includes("png") ? "png" : "jpeg";
-      return `data:image/${ext};base64,${buffer.toString("base64")}`;
-    } catch (e: any) {
-      console.log(`HF model error (${model}):`, e.message);
-      continue;
-    }
-  }
-  throw new Error("All HuggingFace models failed");
-}
-
-// Pollinations AI
+// Pollinations AI（超时 12s，快速失败后 fallback 到 HuggingFace）
 async function generateWithPollinations(prompt: string): Promise<string> {
   const apiKey = process.env.POLLINATIONS_API_KEY;
   if (!apiKey) throw new Error("POLLINATIONS_API_KEY not set");
@@ -90,7 +49,7 @@ async function generateWithPollinations(prompt: string): Promise<string> {
   const seed = Math.floor(Math.random() * 100000);
   const url = `https://gen.pollinations.ai/image/${encoded}?width=512&height=512&model=flux&seed=${seed}&key=${apiKey}`;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30000);
+  const timeout = setTimeout(() => controller.abort(), 12000);
   const response = await fetch(url, { signal: controller.signal, headers: { "Accept": "image/*" } });
   clearTimeout(timeout);
   if (!response.ok) {
@@ -106,6 +65,57 @@ async function generateWithPollinations(prompt: string): Promise<string> {
   if (buffer.length < 3000) throw new Error("Image too small");
   const ext = contentType.includes("png") ? "png" : "jpeg";
   return `data:image/${ext};base64,${buffer.toString("base64")}`;
+}
+
+// HuggingFace FLUX.1-schnell 免费推理 API（无需 key 也可用，有 key 更稳定）
+async function generateWithHuggingFace(prompt: string): Promise<string> {
+  const hfToken = process.env.HUGGINGFACE_API_TOKEN;
+  const models = [
+    "black-forest-labs/FLUX.1-schnell",
+    "stabilityai/stable-diffusion-xl-base-1.0",
+  ];
+  for (const model of models) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 20000);
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        "Accept": "image/png,image/jpeg,image/*",
+      };
+      if (hfToken) headers["Authorization"] = `Bearer ${hfToken}`;
+      const endpoint = model.startsWith("black-forest-labs")
+        ? `https://router.huggingface.co/hf-inference/models/${model}/v1/text-to-image`
+        : `https://api-inference.huggingface.co/models/${model}`;
+      const body = model.startsWith("black-forest-labs")
+        ? JSON.stringify({ inputs: prompt, parameters: { num_inference_steps: 4, width: 512, height: 512 } })
+        : JSON.stringify({ inputs: prompt, parameters: { width: 512, height: 512 } });
+      const response = await fetch(endpoint, { method: "POST", headers, body, signal: controller.signal });
+      clearTimeout(timeout);
+      if (response.status === 503) {
+        // 模型加载中，等 3 秒重试一次
+        await new Promise((r) => setTimeout(r, 3000));
+        const retryRes = await fetch(endpoint, { method: "POST", headers, body });
+        if (!retryRes.ok) continue;
+        const ct2 = retryRes.headers.get("content-type") || "";
+        if (!ct2.includes("image")) continue;
+        const buf2 = Buffer.from(await retryRes.arrayBuffer());
+        if (buf2.length < 5000) continue;
+        const ext2 = ct2.includes("png") ? "png" : "jpeg";
+        return `data:image/${ext2};base64,${buf2.toString("base64")}`;
+      }
+      if (!response.ok) continue;
+      const contentType = response.headers.get("content-type") || "";
+      if (!contentType.includes("image")) continue;
+      const buffer = Buffer.from(await response.arrayBuffer());
+      if (buffer.length < 5000) continue;
+      const ext = contentType.includes("png") ? "png" : "jpeg";
+      return `data:image/${ext};base64,${buffer.toString("base64")}`;
+    } catch (e: any) {
+      console.log(`HF model error (${model}):`, e.message);
+      continue;
+    }
+  }
+  throw new Error("All HuggingFace models failed");
 }
 
 // GET: 免费生成（含登录用户 DB quota）

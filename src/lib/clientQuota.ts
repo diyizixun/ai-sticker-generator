@@ -2,7 +2,7 @@
 // 解决 Vercel serverless 内存不持久问题
 
 const KEY = "aisticker_quota";
-const FREE_DAILY_LIMIT = 5;
+const FREE_DAILY_LIMIT = 10;
 
 interface QuotaData {
   date: string; // "2026-06-20"

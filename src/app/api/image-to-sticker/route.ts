@@ -1,5 +1,5 @@
 // /api/image-to-sticker - 图片转贴纸API
-// 接收上传的图片，调用 Replicate Flux 进行 image-to-image 转换
+// 优先 Replicate image-to-image，无 token 时降级 Pollinations 文本生成
 
 import { NextRequest, NextResponse } from "next/server";
 
@@ -49,12 +49,29 @@ async function moderatePrompt(prompt: string, userId?: string): Promise<{ allowe
 
     return { allowed: true };
   } catch (e: any) {
-    if (e.name === "AbortError") {
-      console.error("Moderation API timeout");
-    }
     console.warn("Creem moderation unavailable, allowing request");
     return { allowed: true };
   }
+}
+
+// Pollinations 文本生成降级（无 Replicate 时使用）
+async function generateWithPollinationsFallback(prompt: string): Promise<string> {
+  const apiKey = process.env.POLLINATIONS_API_KEY;
+  if (!apiKey) throw new Error("POLLINATIONS_API_KEY not set");
+  const encoded = encodeURIComponent(prompt);
+  const seed = Math.floor(Math.random() * 100000);
+  const url = `https://gen.pollinations.ai/image/${encoded}?width=512&height=512&model=flux&seed=${seed}&key=${apiKey}`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  const response = await fetch(url, { signal: controller.signal, headers: { "Accept": "image/*" } });
+  clearTimeout(timeout);
+  if (!response.ok) throw new Error(`Pollinations ${response.status}`);
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("image")) throw new Error("Non-image response");
+  const buffer = Buffer.from(await response.arrayBuffer());
+  if (buffer.length < 3000) throw new Error("Image too small");
+  const ext = contentType.includes("png") ? "png" : "jpeg";
+  return `data:image/${ext};base64,${buffer.toString("base64")}`;
 }
 
 export async function POST(req: NextRequest) {
@@ -92,31 +109,37 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 读取图片文件
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    const base64Image = buffer.toString("base64");
-    const dataUri = `data:${file.type};base64,${base64Image}`;
-
     const stylePrompt = STYLE_PROMPTS[style] || "sticker design";
-    const fullPrompt = `${stylePrompt}, ${prompt}, transform into sticker, white outline, die-cut sticker shape, clean background, vibrant colors, high quality`;
+    const fullPrompt = `${stylePrompt}, ${prompt || "sticker"}, transform into sticker, white outline, die-cut sticker shape, clean background, vibrant colors, high quality`;
 
-    // 使用 Replicate Flux 进行 image-to-image 转换
-    if (!process.env.REPLICATE_API_TOKEN) {
-      console.error("REPLICATE_API_TOKEN not configured");
-      return NextResponse.json(
-        { error: "Image-to-sticker service not configured. Please contact support." },
-        { status: 503 }
-      );
+    // ── 优先 Replicate image-to-image ──
+    if (process.env.REPLICATE_API_TOKEN) {
+      try {
+        const bytes = await file.arrayBuffer();
+        const buffer = Buffer.from(bytes);
+        const base64Image = buffer.toString("base64");
+        const dataUri = `data:${file.type};base64,${base64Image}`;
+        const result = await generateWithReplicate(dataUri, fullPrompt);
+        return NextResponse.json({ success: true, imageUrl: result, source: "replicate" });
+      } catch (e: any) {
+        console.error("Replicate image-to-sticker failed:", e);
+        // Replicate 失败，降级到 Pollinations
+      }
     }
 
+    // ── 降级：Pollinations 文本生成（基于 prompt 生成新贴纸）──
     try {
-      const result = await generateWithReplicate(dataUri, fullPrompt);
-      return NextResponse.json({ success: true, imageUrl: result, source: "replicate" });
+      const result = await generateWithPollinationsFallback(fullPrompt);
+      return NextResponse.json({
+        success: true,
+        imageUrl: result,
+        source: "pollinations-fallback",
+        note: "Image transformation unavailable, generated new sticker based on your description."
+      });
     } catch (e: any) {
-      console.error("Replicate image-to-sticker failed:", e);
+      console.error("Pollinations fallback failed:", e);
       return NextResponse.json(
-        { error: "Generation failed. Please try again later." },
+        { error: "Generation failed. Please try text mode instead." },
         { status: 502 }
       );
     }
@@ -128,7 +151,7 @@ export async function POST(req: NextRequest) {
 
 async function generateWithReplicate(imageDataUri: string, prompt: string): Promise<string> {
   const token = process.env.REPLICATE_API_TOKEN!;
-  
+
   // 使用 Flux 模型进行 image-to-image 转换
   const response = await fetch("https://api.replicate.com/v1/predictions", {
     method: "POST",
