@@ -27,7 +27,7 @@ export default function StickerImage({
   const [loadError, setLoadError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
-  const autoRetried = useRef(false);
+  const autoRetried = useRef(0); // 改为计数器，最多自动重试 2 次
 
   // 用 ref 存回调，避免回调变化导致 generate 重建引发无限循环
   const onQuotaUpdateRef = useRef(onQuotaUpdate);
@@ -43,9 +43,14 @@ export default function StickerImage({
         prompt: userPrompt,
         style: styleId,
       });
+      // 前端 28s 超时，比 Vercel function 30s 短，确保能收到错误而非挂起
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 28000);
       const res = await fetch(`/api/generate?${params.toString()}`, {
         method: "GET",
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
 
       if (!res.ok) {
         const errText = await res.text().catch(() => "");
@@ -64,9 +69,9 @@ export default function StickerImage({
       }
     } catch (e: any) {
       console.error("StickerImage generate error:", e.message);
-      // 首次失败自动重试一次（2 秒后），避免用户手动点
-      if (!autoRetried.current) {
-        autoRetried.current = true;
+      // 最多自动重试 2 次（间隔 2 秒），覆盖偶发超时
+      if (autoRetried.current < 2) {
+        autoRetried.current += 1;
         setTimeout(() => setRetryCount((c) => c + 1), 2000);
         return;
       }
@@ -149,7 +154,7 @@ export default function StickerImage({
             <div className="absolute inset-0 rounded-full border-4 border-purple-600 border-t-transparent animate-spin" />
           </div>
           <p className="text-sm text-gray-500 animate-pulse">Generating your sticker with AI...</p>
-          <p className="text-xs text-gray-400">Usually takes 5–20 seconds</p>
+          <p className="text-xs text-gray-400">Usually takes 5–15 seconds</p>
         </div>
       )}
       {dataUrl && (

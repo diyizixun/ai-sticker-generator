@@ -68,6 +68,7 @@ async function generateWithPollinations(prompt: string): Promise<string> {
 }
 
 // HuggingFace FLUX.1-schnell 免费推理 API（无需 key 也可用，有 key 更稳定）
+// 超时 12s + 503 等待 2s，确保 Pollinations(12s) + HuggingFace(12s+2s) = 26s < Vercel 30s 限制
 async function generateWithHuggingFace(prompt: string): Promise<string> {
   const hfToken = process.env.HUGGINGFACE_API_TOKEN;
   const models = [
@@ -77,7 +78,7 @@ async function generateWithHuggingFace(prompt: string): Promise<string> {
   for (const model of models) {
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 20000);
+      const timeout = setTimeout(() => controller.abort(), 12000);
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
         "Accept": "image/png,image/jpeg,image/*",
@@ -92,8 +93,8 @@ async function generateWithHuggingFace(prompt: string): Promise<string> {
       const response = await fetch(endpoint, { method: "POST", headers, body, signal: controller.signal });
       clearTimeout(timeout);
       if (response.status === 503) {
-        // 模型加载中，等 3 秒重试一次
-        await new Promise((r) => setTimeout(r, 3000));
+        // 模型加载中，等 2 秒重试一次（控制总时间 < 30s function 限制）
+        await new Promise((r) => setTimeout(r, 2000));
         const retryRes = await fetch(endpoint, { method: "POST", headers, body });
         if (!retryRes.ok) continue;
         const ct2 = retryRes.headers.get("content-type") || "";
