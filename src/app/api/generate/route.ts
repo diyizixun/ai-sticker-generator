@@ -35,40 +35,58 @@ async function moderatePrompt(prompt: string, userId?: string): Promise<{ allowe
     }
     return { allowed: true };
   } catch {
-    // 审核超时/不可用时放行（避免审核服务故障阻塞所有生成）
     console.warn("Creem moderation unavailable, allowing request");
     return { allowed: true };
   }
 }
 
-// Pollinations AI（超时 12s，快速失败后 fallback 到 HuggingFace）
+// Pollinations AI（免费端点，无需 API Key，flux 模型约 3s）
 async function generateWithPollinations(prompt: string): Promise<string> {
-  const apiKey = process.env.POLLINATIONS_API_KEY;
-  if (!apiKey) throw new Error("POLLINATIONS_API_KEY not set");
   const encoded = encodeURIComponent(prompt);
   const seed = Math.floor(Math.random() * 100000);
-  const url = `https://gen.pollinations.ai/image/${encoded}?width=512&height=512&model=flux&seed=${seed}&key=${apiKey}`;
+  const url = `https://image.pollinations.ai/prompt/${encoded}?width=512&height=512&seed=${seed}&nologo=true&model=flux`;
+  console.log("[Pollinations] Calling:", url);
+  console.log("[Pollinations] URL length:", url.length);
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 12000);
-  const response = await fetch(url, { signal: controller.signal, headers: { "Accept": "image/*" } });
-  clearTimeout(timeout);
-  if (!response.ok) {
-    const errText = await response.text().catch(() => "");
-    throw new Error(`Pollinations ${response.status}: ${errText.slice(0, 100)}`);
+  const timeout = setTimeout(() => {
+    console.log("[Pollinations] Timeout triggered after 20s");
+    controller.abort();
+  }, 20000);
+  try {
+    const startTime = Date.now();
+    console.log("[Pollinations] Fetch started at:", startTime);
+    const response = await fetch(url, { 
+      signal: controller.signal, 
+      headers: { "Accept": "image/*" }
+    });
+    const elapsed = Date.now() - startTime;
+    console.log("[Pollinations] Response received after:", elapsed, "ms");
+    console.log("[Pollinations] Response status:", response.status);
+    clearTimeout(timeout);
+    const contentType = response.headers.get("content-type") || "";
+    console.log("[Pollinations] Content-Type:", contentType);
+    if (!response.ok) {
+      const errText = await response.text().catch(() => "");
+      throw new Error(`Pollinations ${response.status}: ${errText.slice(0, 200)}`);
+    }
+    if (!contentType.includes("image")) {
+      const body = await response.text().catch(() => "");
+      throw new Error(`Pollinations returned non-image: ${body.slice(0, 300)}`);
+    }
+    const buffer = Buffer.from(await response.arrayBuffer());
+    console.log("[Pollinations] Image size:", buffer.length);
+    if (buffer.length < 3000) throw new Error(`Image too small: ${buffer.length} bytes`);
+    const ext = contentType.includes("png") ? "png" : "jpeg";
+    return `data:image/${ext};base64,${buffer.toString("base64")}`;
+  } catch (e: any) {
+    clearTimeout(timeout);
+    const elapsed = Date.now() - (e.startTime || Date.now());
+    console.error("[Pollinations] Error after", elapsed, "ms:", e.message);
+    throw e;
   }
-  const contentType = response.headers.get("content-type") || "";
-  if (!contentType.includes("image")) {
-    const body = await response.text().catch(() => "");
-    throw new Error(`Pollinations returned non-image: ${body.slice(0, 200)}`);
-  }
-  const buffer = Buffer.from(await response.arrayBuffer());
-  if (buffer.length < 3000) throw new Error("Image too small");
-  const ext = contentType.includes("png") ? "png" : "jpeg";
-  return `data:image/${ext};base64,${buffer.toString("base64")}`;
 }
 
 // HuggingFace FLUX.1-schnell 免费推理 API（无需 key 也可用，有 key 更稳定）
-// 超时 12s + 503 等待 2s，确保 Pollinations(12s) + HuggingFace(12s+2s) = 26s < Vercel 30s 限制
 async function generateWithHuggingFace(prompt: string): Promise<string> {
   const hfToken = process.env.HUGGINGFACE_API_TOKEN;
   const models = [
@@ -93,7 +111,6 @@ async function generateWithHuggingFace(prompt: string): Promise<string> {
       const response = await fetch(endpoint, { method: "POST", headers, body, signal: controller.signal });
       clearTimeout(timeout);
       if (response.status === 503) {
-        // 模型加载中，等 2 秒重试一次（控制总时间 < 30s function 限制）
         await new Promise((r) => setTimeout(r, 2000));
         const retryRes = await fetch(endpoint, { method: "POST", headers, body });
         if (!retryRes.ok) continue;
@@ -131,15 +148,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: false, error: "Description too long" }, { status: 400 });
   }
 
-  // 检查登录状态
   const session = req.cookies.get("session")?.value;
   const isLoggedIn = !!session && !!supabaseAdmin;
 
-  // ── 额度检查 ──
   let quotaInfo: { allowed: boolean; remaining: number; limit: number; isPro: boolean };
 
   if (isLoggedIn) {
-    // 登录用户：从 Supabase 查今日已生成次数
     const today = new Date().toISOString().split("T")[0];
     const { data: userRow } = await supabaseAdmin!
       .from("users")
@@ -158,7 +172,6 @@ export async function GET(req: NextRequest) {
     const remaining = isPro ? 9999 : Math.max(0, dailyLimit - used);
     quotaInfo = { allowed: remaining > 0 || isPro, remaining, limit: dailyLimit, isPro };
   } else {
-    // 匿名用户：内存 quota
     const clientId = getClientId(req);
     const q = checkQuota(clientId);
     quotaInfo = { ...q, isPro: false };
@@ -175,7 +188,6 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // 内容审核
   const moderation = await moderatePrompt(userPrompt, isLoggedIn ? session : undefined);
   if (!moderation.allowed) {
     const msgs: Record<string, string> = {
@@ -191,11 +203,9 @@ export async function GET(req: NextRequest) {
   const stylePrompt = STYLE_PROMPTS[styleId] || "sticker design";
   const fullPrompt = `${stylePrompt}, ${userPrompt}, sticker, white outline, die-cut sticker shape, clean background, vibrant colors, high quality`;
 
-  // ── 依次尝试各生成接口（不提前 return）──
   let result: string | null = null;
   let source = "";
 
-  // 1. Replicate
   if (process.env.REPLICATE_API_TOKEN) {
     try {
       result = await generateWithReplicate(fullPrompt);
@@ -205,7 +215,6 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // 2. Pollinations
   if (!result) {
     try {
       result = await generateWithPollinations(fullPrompt);
@@ -215,7 +224,6 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // 3. OpenAI
   if (!result && process.env.OPENAI_API_KEY) {
     try {
       result = await generateWithOpenAI(fullPrompt);
@@ -225,7 +233,6 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // 4. HuggingFace
   if (!result) {
     try {
       result = await generateWithHuggingFace(fullPrompt);
@@ -242,11 +249,9 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // ── 生成成功：存 DB + 更新 quota ──
   let remaining: number;
 
   if (isLoggedIn) {
-    // 写入 generations 表
     await supabaseAdmin!
       .from("generations")
       .insert({
@@ -257,7 +262,6 @@ export async function GET(req: NextRequest) {
         created_at: new Date().toISOString(),
       });
 
-    // 更新 users 表 total_generations（非关键计数器，轻微竞态风险可接受）
     try {
       const { data: u } = await supabaseAdmin!
         .from("users")
@@ -273,7 +277,6 @@ export async function GET(req: NextRequest) {
       console.warn("Failed to increment total_generations for", session, e);
     }
 
-    // 重新计算剩余额度（登录免费用户限额为 10，不是 5）
     const today = new Date().toISOString().split("T")[0];
     const { count } = await supabaseAdmin!
       .from("generations")
@@ -283,9 +286,7 @@ export async function GET(req: NextRequest) {
       .lt("created_at", `${today}T23:59:59Z`);
     remaining = quotaInfo.isPro ? 9999 : Math.max(0, quotaInfo.limit - (count || 0));
   } else {
-    // 匿名用户：仅客户端 localStorage 计数（服务端内存在 Vercel 冷启后会重置，由 ResultClient 扣）
-    // 返回配额时不减，客户端会在成功回调里自己扣
-    remaining = quotaInfo.remaining - 1;
+    remaining = quotaInfo.remaining;
   }
 
   return NextResponse.json({
@@ -320,7 +321,6 @@ export async function POST(req: NextRequest) {
         const fullPrompt = `${stylePrompt}, ${prompt}, sticker, white outline, die-cut sticker shape, clean background, vibrant colors, high quality`;
         const result = await generateWithReplicate(fullPrompt, true);
 
-        // Pro 生成也记录到 DB
         if (userId && supabaseAdmin) {
           await supabaseAdmin
             .from("generations")
@@ -347,11 +347,10 @@ export async function POST(req: NextRequest) {
 
 async function generateWithReplicate(prompt: string, transparent = false): Promise<string> {
   const token = process.env.REPLICATE_API_TOKEN!;
-  const response = await fetch("https://api.replicate.com/v1/predictions", {
+  const response = await fetch("https://api.replicate.com/v1/models/black-forest-labs/flux-schnell/predictions", {
     method: "POST",
     headers: { Authorization: `Token ${token}`, "Content-Type": "application/json", Prefer: "respond-async" },
     body: JSON.stringify({
-      version: "black-forest-labs/flux-schnell",
       input: {
         prompt: transparent ? `${prompt}, transparent background, no background, isolated sticker` : prompt,
         num_outputs: 1,
@@ -361,7 +360,10 @@ async function generateWithReplicate(prompt: string, transparent = false): Promi
       },
     }),
   });
-  if (!response.ok) throw new Error(`Replicate: ${response.status}`);
+  if (!response.ok) {
+    const errText = await response.text().catch(() => "");
+    throw new Error(`Replicate: ${response.status} ${errText.slice(0, 200)}`);
+  }
   const prediction = await response.json();
   let result = prediction;
   let attempts = 0;
@@ -370,6 +372,7 @@ async function generateWithReplicate(prompt: string, transparent = false): Promi
     const pollRes = await fetch(`https://api.replicate.com/v1/predictions/${result.id}`, {
       headers: { Authorization: `Token ${token}` },
     });
+    if (!pollRes.ok) throw new Error(`Replicate poll: ${pollRes.status}`);
     result = await pollRes.json();
     attempts++;
   }
