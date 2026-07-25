@@ -1,20 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { otpStore } from "@/lib/otp-store";
+import { RESEND_API_KEY } from "@/lib/config";
 
 function generateCode(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
 
 async function sendViaResend(to: string, code: string): Promise<{ ok: boolean; error?: string }> {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
-    console.log("RESEND_API_KEY not configured, skipping email");
-    return { ok: false, error: "email_not_configured" };
-  }
   const resp = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${RESEND_API_KEY}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -53,13 +49,8 @@ export async function POST(req: NextRequest) {
 
     const result = await sendViaResend(email, code);
     if (!result.ok) {
-      // 邮件服务未配置时，使用固定验证码 123456 作为后备
-      otpStore.set(normalized, { code: "123456", expiresAt, used: false });
-      return NextResponse.json({
-        success: true,
-        devCode: "123456",
-        message: "Email service not configured. Use code: 123456",
-      });
+      console.error("Resend failed:", result.error);
+      return NextResponse.json({ error: "邮件发送失败，请稍后重试" }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });
