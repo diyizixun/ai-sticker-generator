@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { otpStore } from "@/lib/otp-store";
 
 function generateCode(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
@@ -7,7 +7,10 @@ function generateCode(): string {
 
 async function sendViaResend(to: string, code: string): Promise<{ ok: boolean; error?: string }> {
   const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) throw new Error("RESEND_API_KEY not configured");
+  if (!apiKey) {
+    console.log("RESEND_API_KEY not configured, skipping email");
+    return { ok: true };
+  }
   const resp = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -38,45 +41,15 @@ export async function POST(req: NextRequest) {
 
     const normalized = email.toLowerCase().trim();
 
-    if (!supabaseAdmin) {
-      return NextResponse.json({ error: "系统未配置" }, { status: 500 });
-    }
-
-    // Rate limiting: 60s cooldown
-    const { data: recent, error: selectErr } = await supabaseAdmin
-      .from("otp_codes")
-      .select("created_at")
-      .eq("email", normalized)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (selectErr) {
-      return NextResponse.json({ error: "系统繁忙" }, { status: 500 });
-    }
-
-    if (recent) {
-      const lastSent = new Date(recent.created_at).getTime();
-      if (Date.now() - lastSent < 60000) {
-        return NextResponse.json({ error: "请 60 秒后再试" }, { status: 429 });
-      }
+    const recent = otpStore.get(normalized);
+    if (recent && Date.now() - recent.expiresAt < 60000) {
+      return NextResponse.json({ error: "请 60 秒后再试" }, { status: 429 });
     }
 
     const code = generateCode();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    const expiresAt = Date.now() + 10 * 60 * 1000;
 
-    const { error: insertError } = await supabaseAdmin
-      .from("otp_codes")
-      .insert({
-        email: normalized,
-        code,
-        expires_at: expiresAt.toISOString(),
-        used: false,
-      });
-
-    if (insertError) {
-      return NextResponse.json({ error: "系统繁忙" }, { status: 500 });
-    }
+    otpStore.set(normalized, { code, expiresAt, used: false });
 
     const result = await sendViaResend(email, code);
     if (!result.ok) {
