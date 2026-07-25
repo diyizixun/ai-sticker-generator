@@ -27,14 +27,11 @@ export default function StickerImage({
   const [loadError, setLoadError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
-  const autoRetried = useRef(0); // 改为计数器，最多自动重试 2 次
+  const autoRetried = useRef(0);
 
-  // 用 ref 存回调，避免回调变化导致 generate 重建引发无限循环
   const onQuotaUpdateRef = useRef(onQuotaUpdate);
   onQuotaUpdateRef.current = onQuotaUpdate;
 
-  // 调用 /api/generate 生成图片
-  // 传 userPrompt（非 fullPrompt），由 API 端拼接 style，避免双重拼接
   const generate = useCallback(async () => {
     setLoading(true);
     setLoadError(false);
@@ -43,9 +40,9 @@ export default function StickerImage({
         prompt: userPrompt,
         style: styleId,
       });
-      // 前端 28s 超时，比 Vercel function 30s 短，确保能收到错误而非挂起
+      // 前端 55s 超时，匹配 Vercel 60s function 限制
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 28000);
+      const timeout = setTimeout(() => controller.abort(), 55000);
       const res = await fetch(`/api/generate?${params.toString()}`, {
         method: "GET",
         signal: controller.signal,
@@ -60,7 +57,6 @@ export default function StickerImage({
       const json = await res.json();
       if (json.success && json.imageUrl) {
         setDataUrl(json.imageUrl);
-        // 立刻通知父组件更新 quota（不等图片加载）
         if (json.quota && onQuotaUpdateRef.current) {
           onQuotaUpdateRef.current(json.quota.remaining, json.quota.limit);
         }
@@ -69,8 +65,8 @@ export default function StickerImage({
       }
     } catch (e: any) {
       console.error("StickerImage generate error:", e.message);
-      // 最多自动重试 2 次（间隔 2 秒），覆盖偶发超时
-      if (autoRetried.current < 2) {
+      // 最多自动重试 1 次（间隔 2 秒）
+      if (autoRetried.current < 1) {
         autoRetried.current += 1;
         setTimeout(() => setRetryCount((c) => c + 1), 2000);
         return;
@@ -80,12 +76,10 @@ export default function StickerImage({
     }
   }, [userPrompt, styleId]);
 
-  // 初始生成 + retry 时重新生成
   useEffect(() => {
     generate();
   }, [generate, retryCount]);
 
-  // 图片加载完成 → 转成 dataURL 供下载
   const handleImageReady = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     setLoading(false);
     setLoadError(false);
@@ -97,8 +91,8 @@ export default function StickerImage({
       const ctx = canvas.getContext("2d");
       if (ctx) {
         ctx.drawImage(img, 0, 0);
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
-        if (onImageReady) onImageReady(dataUrl);
+        const canvasDataUrl = canvas.toDataURL("image/jpeg", 0.92);
+        if (onImageReady) onImageReady(canvasDataUrl);
       }
     } catch {
       if (dataUrl && onImageReady) onImageReady(dataUrl);
@@ -109,10 +103,10 @@ export default function StickerImage({
     setDataUrl(null);
     setLoadError(false);
     setLoading(true);
+    autoRetried.current = 0;
     setRetryCount((c) => c + 1);
   }, []);
 
-  // 报错界面
   if (loadError) {
     return (
       <div className="text-center py-12 px-6 w-full">
@@ -126,11 +120,6 @@ export default function StickerImage({
         <p className="text-sm text-gray-500 mb-1 max-w-sm mx-auto">
           The AI server is busy. Please retry — it usually works on the second attempt.
         </p>
-        {retryCount >= 2 && (
-          <p className="text-xs text-gray-400 mb-4">
-            Tip: Try a simpler description like &quot;cute cat sticker&quot;
-          </p>
-        )}
         <button
           onClick={handleRetry}
           className="inline-flex items-center gap-2 px-5 py-2.5 bg-purple-600 text-white text-sm font-medium rounded-xl hover:bg-purple-700 transition-colors mt-4"
@@ -165,7 +154,6 @@ export default function StickerImage({
           style={style}
           onLoad={handleImageReady}
           onError={() => setLoadError(true)}
-          crossOrigin="anonymous"
         />
       )}
       {!dataUrl && !loading && (
