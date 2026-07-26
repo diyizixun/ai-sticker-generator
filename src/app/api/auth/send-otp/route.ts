@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { otpStore } from "@/lib/otp-store";
 import { RESEND_API_KEY } from "@/lib/config";
+import { signOtp, verifyOtpToken } from "@/lib/otp-token";
 
 function generateCode(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
@@ -37,15 +37,17 @@ export async function POST(req: NextRequest) {
 
     const normalized = email.toLowerCase().trim();
 
-    const recent = otpStore.get(normalized);
-    if (recent && Date.now() - recent.expiresAt < 60000) {
-      return NextResponse.json({ error: "请 60 秒后再试" }, { status: 429 });
+    // 60 秒冷却检查（用 cookie 记录上次发送时间）
+    const lastSentCookie = req.cookies.get("otp_last_sent")?.value;
+    if (lastSentCookie) {
+      const lastSent = parseInt(lastSentCookie, 10);
+      if (!isNaN(lastSent) && Date.now() - lastSent < 60000) {
+        return NextResponse.json({ error: "请 60 秒后再试" }, { status: 429 });
+      }
     }
 
     const code = generateCode();
     const expiresAt = Date.now() + 10 * 60 * 1000;
-
-    otpStore.set(normalized, { code, expiresAt, used: false });
 
     const result = await sendViaResend(email, code);
     if (!result.ok) {
@@ -53,7 +55,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "邮件发送失败，请稍后重试" }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true });
+    // 用加密 cookie 保存验证码（避免 serverless 内存不共享问题）
+    const token = signOtpToken(normalized, code, expiresAt);
+    const response = NextResponse.json({ success: true });
+    response.cookies.set("otp_token", token, {
+      maxAge: 10 * 60,
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      path: "/",
+    });
+    response.cookies.set("otp_last_sent", String(Date.now()), {
+      maxAge: 120,
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      path: "/",
+    });
+
+    return response;
   } catch (e: any) {
     return NextResponse.json({ error: "发送失败" }, { status: 500 });
   }
