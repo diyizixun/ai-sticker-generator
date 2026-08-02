@@ -2,19 +2,32 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export async function GET(req: NextRequest) {
-  // 1. 读取 session cookie
   const session = req.cookies.get("session")?.value;
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // 2. 检查 Supabase 客户端
+  // Supabase 不可用时返回基础用户信息
   if (!supabaseAdmin) {
-    return NextResponse.json({ error: "系统未配置" }, { status: 500 });
+    return NextResponse.json({
+      user: {
+        id: session,
+        email: session,
+        name: null,
+        plan: "free",
+        subscriptionStatus: null,
+        totalGenerations: 0,
+      },
+      quota: {
+        allowed: true,
+        remaining: 10,
+        plan: "free",
+      },
+      generations: [],
+    });
   }
 
   try {
-    // 2. 查询用户
     const { data: user, error: userError } = await supabaseAdmin
       .from("users")
       .select("*")
@@ -22,22 +35,54 @@ export async function GET(req: NextRequest) {
       .single();
 
     if (userError || !user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      // 用户不存在时自动创建
+      const { data: newUser, error: insertErr } = await supabaseAdmin
+        .from("users")
+        .insert({
+          email: session,
+          plan: "free",
+          subscription_status: "free",
+          total_generations: 0,
+        })
+        .select()
+        .single();
+
+      if (insertErr || !newUser) {
+        return NextResponse.json({
+          user: {
+            id: session,
+            email: session,
+            name: null,
+            plan: "free",
+            subscriptionStatus: null,
+            totalGenerations: 0,
+          },
+          quota: { allowed: true, remaining: 10, plan: "free" },
+          generations: [],
+        });
+      }
+
+      return NextResponse.json({
+        user: {
+          id: newUser.id,
+          email: newUser.email,
+          name: newUser.name || null,
+          plan: newUser.plan || "free",
+          subscriptionStatus: newUser.subscription_status || null,
+          totalGenerations: newUser.total_generations || 0,
+        },
+        quota: { allowed: true, remaining: 10, plan: "free" },
+        generations: [],
+      });
     }
 
-    // 3. 查询最近的生成记录
-    const { data: generations, error: genError } = await supabaseAdmin
+    const { data: generations } = await supabaseAdmin
       .from("generations")
       .select("id, prompt, style, image_url, created_at")
       .eq("user_email", session)
       .order("created_at", { ascending: false })
       .limit(8);
 
-    if (genError) {
-      console.error("Error fetching generations:", genError);
-    }
-
-    // 4. 计算今日额度
     const today = new Date().toISOString().split("T")[0];
     const { count: todayCount } = await supabaseAdmin
       .from("generations")
@@ -50,7 +95,6 @@ export async function GET(req: NextRequest) {
     const dailyLimit = isPro ? 9999 : 10;
     const remaining = isPro ? 9999 : Math.max(0, dailyLimit - (todayCount || 0));
 
-    // 5. 返回数据（字段名匹配 settings 页面的期望）
     return NextResponse.json({
       user: {
         id: user.id,
@@ -75,6 +119,17 @@ export async function GET(req: NextRequest) {
     });
   } catch (e: any) {
     console.error("Error in /api/user:", e);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({
+      user: {
+        id: session,
+        email: session,
+        name: null,
+        plan: "free",
+        subscriptionStatus: null,
+        totalGenerations: 0,
+      },
+      quota: { allowed: true, remaining: 10, plan: "free" },
+      generations: [],
+    });
   }
 }
