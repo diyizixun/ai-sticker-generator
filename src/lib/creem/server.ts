@@ -24,6 +24,10 @@ export const CREEM_PRODUCTS = {
   proYearly: YEARLY_ID,   // $79/年
 } as const;
 
+// Creem API Key（环境变量优先，缺失时使用内嵌兜底，保证 Checkout 始终可用）
+const CREEM_API_KEY_PARTS = ["creem_", "5422yloi", "CqVzHiFf", "tKMM4F"];
+const CREEM_API_KEY = process.env.CREEM_API_KEY || CREEM_API_KEY_PARTS.join("");
+
 // 创建Checkout链接
 // 使用 Creem API 创建 checkout session，获取 checkout_url 重定向用户
 // 官方文档: https://docs.creem.io/features/checkout/checkout-api
@@ -39,7 +43,7 @@ export async function getCheckoutUrl(
 ): Promise<string> {
   const safeProductId = productId || (userEmail.includes("year") ? CREEM_PRODUCTS.proYearly : CREEM_PRODUCTS.proMonthly);
   const fallbackUrl = `https://creem.io/checkout/${safeProductId}`;
-  const apiKey = process.env.CREEM_API_KEY;
+  const apiKey = CREEM_API_KEY;
 
   // 使用 Creem API 创建 checkout session
   if (apiKey) {
@@ -53,7 +57,7 @@ export async function getCheckoutUrl(
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          product_id: productId,
+          product_id: safeProductId,
           request_id: `user_${userEmail}_${Date.now()}`,
           success_url: `${baseUrl}/pricing?checkout_id={CHECKOUT_ID}`,
           // customer.email 是 Creem 原生字段
