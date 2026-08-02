@@ -1,7 +1,6 @@
-import { getCheckoutUrl } from "@/lib/creem/server";
+import { getCheckoutUrl, CREEM_PRODUCTS } from "@/lib/creem/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
-// 从 cookie 获取当前登录用户 email
 function getSessionEmail(request: Request): string | null {
   const cookie = request.headers.get("cookie") || "";
   const match = cookie.match(/session=([^;]+)/);
@@ -12,7 +11,6 @@ export async function POST(request: Request) {
   try {
     const { priceType } = await request.json();
 
-    // 验证登录状态（从 cookie 读取 session）
     const email = getSessionEmail(request);
     if (!email) {
       return Response.json(
@@ -21,13 +19,9 @@ export async function POST(request: Request) {
       );
     }
 
-    // 确定产品 ID
     const productId =
-      priceType === "yearly"
-        ? process.env.CREEM_PRO_YEARLY_PRODUCT_ID!
-        : process.env.CREEM_PRO_MONTHLY_PRODUCT_ID!;
+      priceType === "yearly" ? CREEM_PRODUCTS.proYearly : CREEM_PRODUCTS.proMonthly;
 
-    // 使用 Creem 托管 Checkout URL（无需 API Key）
     const checkoutUrl = await getCheckoutUrl(productId, email);
 
     return Response.json({ url: checkoutUrl });

@@ -17,9 +17,11 @@ export function verifyCreemWebhookSignature(
 }
 
 // Creem产品配置
+const MONTHLY_ID = process.env.CREEM_PRO_MONTHLY_PRODUCT_ID || "prod_7OurPpIwMMeub80vPOxl6F";
+const YEARLY_ID = process.env.CREEM_PRO_YEARLY_PRODUCT_ID || "prod_3cy26xwgYp3NTUwgQEyeVa";
 export const CREEM_PRODUCTS = {
-  proMonthly: process.env.CREEM_PRO_MONTHLY_PRODUCT_ID!, // $9.9/月
-  proYearly: process.env.CREEM_PRO_YEARLY_PRODUCT_ID!,   // $79/年
+  proMonthly: MONTHLY_ID, // $9.9/月
+  proYearly: YEARLY_ID,   // $79/年
 } as const;
 
 // 创建Checkout链接
