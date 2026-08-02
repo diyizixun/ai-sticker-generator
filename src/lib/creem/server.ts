@@ -37,6 +37,8 @@ export async function getCheckoutUrl(
   productId: string,
   userEmail: string,
 ): Promise<string> {
+  const safeProductId = productId || (userEmail.includes("year") ? CREEM_PRODUCTS.proYearly : CREEM_PRODUCTS.proMonthly);
+  const fallbackUrl = `https://creem.io/checkout/${safeProductId}`;
   const apiKey = process.env.CREEM_API_KEY;
 
   // 使用 Creem API 创建 checkout session
@@ -86,6 +88,6 @@ export async function getCheckoutUrl(
 
   // 降级：直接用 creem.io/checkout/{product_id}（实测可访问的基础格式）
   // 注意：不带 checkout_id 也能跳转，Creem 会自动生成
-  console.log('[Creem API] 降级到托管 checkout 页面');
-  return `https://creem.io/checkout/${productId}`;
+  console.log('[Creem API] 降级到托管 checkout 页面, productId:', productId, 'safe:', safeProductId);
+  return fallbackUrl;
 }
