@@ -10,12 +10,12 @@ export const SITE_CONFIG = {
 };
 
 export const STYLES = [
-  { id: "cute", label: "Cute & Kawaii", emoji: "🐱", prompt: "cute kawaii chibi style sticker" },
-  { id: "cartoon", label: "Cartoon", emoji: "🎨", prompt: "cartoon style sticker with bold outlines" },
-  { id: "pixel", label: "Pixel Art", emoji: "👾", prompt: "pixel art style sticker, 16-bit retro game aesthetic" },
-  { id: "realistic", label: "Realistic", emoji: "📷", prompt: "photorealistic sticker, real photograph of a physical sticker, natural lighting, detailed textures, lifelike materials, realistic shadows and highlights, professional product photography, 8k resolution" },
-  { id: "minimal", label: "Minimalist", emoji: "✨", prompt: "minimalist flat design sticker, clean simple shapes" },
-  { id: "vintage", label: "Vintage", emoji: "🎭", prompt: "vintage retro style sticker, aged paper texture" },
+  { id: "cute", label: "Cute & Kawaii", emoji: "🐱", prompt: "cute kawaii chibi style sticker, big expressive eyes, soft rounded shapes, pastel colors, adorable proportions, playful character design, highly detailed" },
+  { id: "cartoon", label: "Cartoon", emoji: "🎨", prompt: "cartoon style sticker with bold clean outlines, flat vibrant colors, thick ink lines, exaggerated features, classic cartoon aesthetic, crisp high contrast" },
+  { id: "pixel", label: "Pixel Art", emoji: "👾", prompt: "pixel art style sticker, 16-bit retro game aesthetic, sharp pixel edges, limited retro color palette, nostalgic sprite design, clean blocky details" },
+  { id: "realistic", label: "Realistic", emoji: "📷", prompt: "ultra realistic sticker, professional product photography, hyper detailed facial features, skin pores and texture, natural soft lighting, lifelike shading and highlights, 8k resolution, sharp focus, deep rich colors, true to life proportions, professional portrait quality" },
+  { id: "minimal", label: "Minimalist", emoji: "✨", prompt: "minimalist flat design sticker, clean simple geometric shapes, limited harmonious color palette, negative space, modern sophisticated simplicity, crisp vector edges" },
+  { id: "vintage", label: "Vintage", emoji: "🎭", prompt: "vintage retro style sticker, aged textured paper, faded warm color palette, distressed grunge edges, 1970s illustration aesthetic, hand painted texture, classic retro typography elements" },
 ] as const;
 
 export const PRICING = {

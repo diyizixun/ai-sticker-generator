@@ -2,15 +2,16 @@
 // 优先 Replicate image-to-image，无 token 时用 Pollinations 文本生成（基于用户描述）
 
 import { NextRequest, NextResponse } from "next/server";
+import { STYLES } from "@/lib/config";
 
-const STYLE_PROMPTS: Record<string, string> = {
-  cute: "cute kawaii chibi style sticker, big expressive eyes, soft rounded shapes, pastel colors, adorable proportions, playful character design, highly detailed",
-  cartoon: "cartoon style sticker with bold clean outlines, flat vibrant colors, thick ink lines, exaggerated features, classic cartoon aesthetic, crisp high contrast",
-  pixel: "pixel art style sticker, 16-bit retro game aesthetic, sharp pixel edges, limited retro color palette, nostalgic sprite design, clean blocky details",
-  realistic: "ultra realistic sticker, professional product photography, hyper detailed facial features, skin pores and texture, natural soft lighting, lifelike shading and highlights, 8k resolution, sharp focus, deep rich colors, true to life proportions, professional portrait quality",
-  minimal: "minimalist flat design sticker, clean simple geometric shapes, limited harmonious color palette, negative space, modern sophisticated simplicity, crisp vector edges",
-  vintage: "vintage retro style sticker, aged textured paper, faded warm color palette, distressed grunge edges, 1970s illustration aesthetic, hand painted texture, classic retro typography elements",
-};
+// 单一数据源：从 lib/config 的 STYLES 构建，避免前后端提示词不一致
+const STYLE_PROMPTS: Record<string, string> = STYLES.reduce(
+  (acc, s) => {
+    acc[s.id] = s.prompt;
+    return acc;
+  },
+  {} as Record<string, string>,
+);
 
 // Creem Moderation API
 async function moderatePrompt(prompt: string, userId?: string): Promise<{ allowed: boolean; reason?: string }> {
