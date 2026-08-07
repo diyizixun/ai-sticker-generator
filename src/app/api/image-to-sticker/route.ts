@@ -39,22 +39,26 @@ async function moderatePrompt(prompt: string, userId?: string): Promise<{ allowe
 }
 
 // Pollinations 文本生成（免费，无需 API Key）
-// flux 模型约 15-22s（高质量），turbo 模型约 5-8s（兜底），default 约 10-15s
+// 2026-08 实测（最大输出 768x768 正方形）：
+// stable-diffusion  ≈ 1-2s  60-80KB （细节最丰富，最佳质量性价比）
+// turbo            ≈ 1-2s  30-40KB （速度快，细节略少）
+// default/flux     ≈ 10-45s 30-50KB （慢速，偶尔失败）
 async function generateWithPollinations(prompt: string): Promise<string> {
   const encoded = encodeURIComponent(prompt);
   const seed = Math.floor(Math.random() * 100000);
 
-  // 按质量排序尝试：flux（高质量优先）→ 默认（flux/dev 兜底）→ turbo（快速兜底）
+  // 按 速度×质量 实测综合排序：stable-diffusion → turbo → default → flux
   const urls = [
-    `https://image.pollinations.ai/prompt/${encoded}?width=1024&height=1024&seed=${seed}&nologo=true&model=flux`,
-    `https://image.pollinations.ai/prompt/${encoded}?width=1024&height=1024&seed=${seed}&nologo=true`,
+    `https://image.pollinations.ai/prompt/${encoded}?width=768&height=768&seed=${seed}&nologo=true&model=stable-diffusion`,
     `https://image.pollinations.ai/prompt/${encoded}?width=768&height=768&seed=${seed}&nologo=true&model=turbo`,
+    `https://image.pollinations.ai/prompt/${encoded}?width=768&height=768&seed=${seed}&nologo=true`,
+    `https://image.pollinations.ai/prompt/${encoded}?width=768&height=768&seed=${seed}&nologo=true&model=flux`,
   ];
-  const timeouts = [45000, 40000, 25000]; // flux 45s, default 40s, turbo 25s
+  const timeouts = [25000, 20000, 40000, 45000]; // sd 25s, turbo 20s, default 40s, flux 45s
 
   for (let i = 0; i < urls.length; i++) {
     const url = urls[i];
-    const modelName = i === 0 ? "flux" : i === 1 ? "default" : "turbo";
+    const modelName = i === 0 ? "stable-diffusion" : i === 1 ? "turbo" : i === 2 ? "default" : "flux";
     console.log(`[Image2Sticker] Pollinations attempt ${i + 1} (${modelName})`);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeouts[i]);
@@ -72,9 +76,9 @@ async function generateWithPollinations(prompt: string): Promise<string> {
       if (!response.ok) continue;
       if (!contentType.includes("image")) continue;
       const buffer = Buffer.from(await response.arrayBuffer());
-      if (buffer.length < 3000) continue;
+      if (buffer.length < 15000) continue;
       const ext = contentType.includes("png") ? "png" : "jpeg";
-      console.log(`[Image2Sticker] SUCCESS with ${modelName} in ${elapsed}ms`);
+      console.log(`[Image2Sticker] SUCCESS with ${modelName} in ${elapsed}ms (${(buffer.length/1024).toFixed(0)}KB)`);
       return `data:image/${ext};base64,${buffer.toString("base64")}`;
     } catch (e: any) {
       clearTimeout(timeout);
