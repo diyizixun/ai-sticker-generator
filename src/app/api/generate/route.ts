@@ -6,12 +6,12 @@ import { getClientId, checkQuota } from "@/lib/quota";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 const STYLE_PROMPTS: Record<string, string> = {
-  cute: "cute kawaii chibi style sticker",
-  cartoon: "cartoon style sticker with bold outlines",
-  pixel: "pixel art style sticker, 16-bit retro game aesthetic",
-  realistic: "photorealistic sticker, real photograph style, detailed textures, natural lighting, lifelike shading, 8k resolution",
-  minimal: "minimalist flat design sticker, clean simple shapes, limited color palette, geometric",
-  vintage: "vintage retro style sticker, aged paper texture, faded colors, distressed look, 1970s aesthetic",
+  cute: "cute kawaii chibi style sticker, big expressive eyes, soft rounded shapes, pastel colors, adorable proportions, playful character design, highly detailed",
+  cartoon: "cartoon style sticker with bold clean outlines, flat vibrant colors, thick ink lines, exaggerated features, classic cartoon aesthetic, crisp high contrast",
+  pixel: "pixel art style sticker, 16-bit retro game aesthetic, sharp pixel edges, limited retro color palette, nostalgic sprite design, clean blocky details",
+  realistic: "ultra realistic sticker, professional product photography, hyper detailed facial features, skin pores and texture, natural soft lighting, lifelike shading and highlights, 8k resolution, sharp focus, deep rich colors, true to life proportions, professional portrait quality",
+  minimal: "minimalist flat design sticker, clean simple geometric shapes, limited harmonious color palette, negative space, modern sophisticated simplicity, crisp vector edges",
+  vintage: "vintage retro style sticker, aged textured paper, faded warm color palette, distressed grunge edges, 1970s illustration aesthetic, hand painted texture, classic retro typography elements",
 };
 
 // Creem Moderation API
@@ -41,24 +41,25 @@ async function moderatePrompt(prompt: string, userId?: string): Promise<{ allowe
 }
 
 // Pollinations AI - 免费，无需 API Key
-// turbo 模型约 5-8s，flux 模型约 15-20s
+// flux 模型约 15-22s（高质量），turbo 模型约 5-8s（兜底），default 约 10-15s
 async function generateWithPollinations(prompt: string): Promise<string> {
   const encoded = encodeURIComponent(prompt);
   const seed = Math.floor(Math.random() * 100000);
 
-  // 按速度排序尝试：turbo（最快）→ flux（质量好）→ 默认
+  // 按质量排序尝试：flux（高质量优先）→ 默认（flux/dev 兜底）→ turbo（快速兜底）
   const urls = [
-    `https://image.pollinations.ai/prompt/${encoded}?width=512&height=512&seed=${seed}&nologo=true&model=turbo`,
-    `https://image.pollinations.ai/prompt/${encoded}?width=512&height=512&seed=${seed}&nologo=true&model=flux`,
-    `https://image.pollinations.ai/prompt/${encoded}?width=512&height=512&seed=${seed}&nologo=true`,
+    `https://image.pollinations.ai/prompt/${encoded}?width=1024&height=1024&seed=${seed}&nologo=true&model=flux`,
+    `https://image.pollinations.ai/prompt/${encoded}?width=1024&height=1024&seed=${seed}&nologo=true`,
+    `https://image.pollinations.ai/prompt/${encoded}?width=768&height=768&seed=${seed}&nologo=true&model=turbo`,
   ];
+  const timeouts = [45000, 40000, 25000]; // flux 45s, default 40s, turbo 25s
 
   for (let i = 0; i < urls.length; i++) {
     const url = urls[i];
-    const modelName = i === 0 ? "turbo" : i === 1 ? "flux" : "default";
+    const modelName = i === 0 ? "flux" : i === 1 ? "default" : "turbo";
     console.log(`[Pollinations] Attempt ${i + 1}/${urls.length} (${modelName})`);
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 25000);
+    const timeout = setTimeout(() => controller.abort(), timeouts[i]);
     try {
       const startTime = Date.now();
       const response = await fetch(url, {
