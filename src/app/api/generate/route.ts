@@ -51,52 +51,68 @@ async function generateWithPollinations(prompt: string): Promise<string> {
   const encoded = encodeURIComponent(prompt);
   const seed = Math.floor(Math.random() * 100000);
 
-  // 按 速度×质量 实测综合排序：stable-diffusion → turbo → default → flux
-  const urls = [
-    `https://image.pollinations.ai/prompt/${encoded}?width=768&height=768&seed=${seed}&nologo=true&model=stable-diffusion`,
-    `https://image.pollinations.ai/prompt/${encoded}?width=768&height=768&seed=${seed}&nologo=true&model=turbo`,
-    `https://image.pollinations.ai/prompt/${encoded}?width=768&height=768&seed=${seed}&nologo=true`,
-    `https://image.pollinations.ai/prompt/${encoded}?width=768&height=768&seed=${seed}&nologo=true&model=flux`,
+  // 每个模型的最小文件大小阈值（文件小=压缩率高=细节少）
+  // 达不到阈值就继续换下一个模型尝试，保证最终质量
+  const MIN_KB = { "stable-diffusion": 45, turbo: 25, default: 25, flux: 25 };
+  const timeouts = [30000, 20000, 40000, 45000]; // sd 30s, turbo 20s, default 40s, flux 45s
+  const attempts = [
+    { id: "stable-diffusion", qs: `model=stable-diffusion` },
+    { id: "turbo", qs: `model=turbo` },
+    { id: "default", qs: `` },
+    { id: "flux", qs: `model=flux` },
   ];
-  const timeouts = [25000, 20000, 40000, 45000]; // sd 25s, turbo 20s, default 40s, flux 45s
 
-  for (let i = 0; i < urls.length; i++) {
-    const url = urls[i];
-    const modelName = i === 0 ? "stable-diffusion" : i === 1 ? "turbo" : i === 2 ? "default" : "flux";
-    console.log(`[Pollinations] Attempt ${i + 1}/${urls.length} (${modelName})`);
+  for (let i = 0; i < attempts.length; i++) {
+    const model = attempts[i];
+    // 每个尝试用独立 seed，避免 CDN/服务器缓存返回上一个模型的缓存结果
+    const trySeed = seed + i * 31337;
+    const url =
+      `https://image.pollinations.ai/prompt/${encoded}?width=768&height=768&seed=${trySeed}&nologo=true` +
+      (model.qs ? `&${model.qs}` : "");
+    console.log(`[Pollinations] Attempt ${i + 1}/${attempts.length} (${model.id})`);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeouts[i]);
     try {
       const startTime = Date.now();
       const response = await fetch(url, {
         signal: controller.signal,
-        headers: { Accept: "image/*" },
+        headers: { Accept: "image/*", "Cache-Control": "no-cache" },
       });
       const elapsed = Date.now() - startTime;
-      console.log(`[Pollinations] ${modelName} responded in ${elapsed}ms, status: ${response.status}`);
       clearTimeout(timeout);
-
       const contentType = response.headers.get("content-type") || "";
       if (!response.ok) {
-        console.warn(`[Pollinations] ${modelName} failed: ${response.status}`);
+        console.warn(`[Pollinations] ${model.id} HTTP ${response.status} after ${elapsed}ms`);
         continue;
       }
       if (!contentType.includes("image")) {
-        console.warn(`[Pollinations] ${modelName} returned non-image`);
+        console.warn(`[Pollinations] ${model.id} non-image: ${contentType}`);
         continue;
       }
       const buffer = Buffer.from(await response.arrayBuffer());
-      console.log(`[Pollinations] ${modelName} image size: ${buffer.length}`);
-      if (buffer.length < 15000) {
-        console.warn(`[Pollinations] ${modelName} image too small: ${buffer.length}`);
-        continue;
+      const minBytes = MIN_KB[model.id] * 1024;
+      console.log(
+        `[Pollinations] ${model.id} returned ${(buffer.length / 1024).toFixed(1)}KB in ${elapsed}ms (need >=${MIN_KB[model.id]}KB)`,
+      );
+      if (buffer.length < minBytes) {
+        // 质量不够，不是最终模型就跳过，最后一个模型低于绝对阈值 15KB 才跳过
+        const isLast = i === attempts.length - 1;
+        if (!isLast) {
+          console.warn(`[Pollinations] ${model.id} below quality threshold, trying next`);
+          continue;
+        } else if (buffer.length < 15000) {
+          console.warn(`[Pollinations] ${model.id} image too small: ${buffer.length}`);
+          continue;
+        }
       }
       const ext = contentType.includes("png") ? "png" : "jpeg";
-      console.log(`[Pollinations] SUCCESS with ${modelName} in ${elapsed}ms (${(buffer.length/1024).toFixed(0)}KB)`);
+      console.log(
+        `[Pollinations] ✅ SUCCESS with ${model.id} — ${(buffer.length / 1024).toFixed(0)}KB · ${elapsed}ms`,
+      );
       return `data:image/${ext};base64,${buffer.toString("base64")}`;
     } catch (e: any) {
       clearTimeout(timeout);
-      console.warn(`[Pollinations] ${modelName} error: ${e.message}`);
+      console.warn(`[Pollinations] ${model.id} error: ${e.message}`);
       continue;
     }
   }
