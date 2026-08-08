@@ -159,43 +159,57 @@ async function generateWithHuggingFace(prompt: string): Promise<string> {
     "stabilityai/stable-diffusion-xl-base-1.0",
   ];
   for (const model of models) {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 15000);
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-        Accept: "image/png,image/jpeg,image/*",
-      };
-      if (hfToken) headers["Authorization"] = `Bearer ${hfToken}`;
-      const endpoint = model.startsWith("black-forest-labs")
-        ? `https://router.huggingface.co/hf-inference/models/${model}/v1/text-to-image`
-        : `https://api-inference.huggingface.co/models/${model}`;
-      const body = model.startsWith("black-forest-labs")
-        ? JSON.stringify({ inputs: prompt, parameters: { num_inference_steps: 4, width: 512, height: 512 } })
-        : JSON.stringify({ inputs: prompt, parameters: { width: 512, height: 512 } });
-      const response = await fetch(endpoint, { method: "POST", headers, body, signal: controller.signal });
-      clearTimeout(timeout);
-      if (response.status === 503) {
-        await new Promise((r) => setTimeout(r, 2000));
-        const retryRes = await fetch(endpoint, { method: "POST", headers, body });
-        if (!retryRes.ok) continue;
-        const ct2 = retryRes.headers.get("content-type") || "";
-        if (!ct2.includes("image")) continue;
-        const buf2 = Buffer.from(await retryRes.arrayBuffer());
-        if (buf2.length < 5000) continue;
-        const ext2 = ct2.includes("png") ? "png" : "jpeg";
-        return `data:image/${ext2};base64,${buf2.toString("base64")}`;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), model.startsWith("black-forest-labs") ? 14000 : 14000);
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+          Accept: "image/png,image/jpeg,image/*;q=0.9,*/*;q=0.8",
+          "Cache-Control": "no-cache, no-store",
+          "User-Agent":
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
+        };
+        if (hfToken) headers["Authorization"] = `Bearer ${hfToken}`;
+        headers["x-wait-for-model"] = "true";
+        const endpoint = model.startsWith("black-forest-labs")
+          ? `https://router.huggingface.co/hf-inference/models/${model}/v1/text-to-image`
+          : `https://api-inference.huggingface.co/models/${model}`;
+        const body = model.startsWith("black-forest-labs")
+          ? JSON.stringify({ inputs: prompt, parameters: { num_inference_steps: 4, width: 768, height: 768 } })
+          : JSON.stringify({ inputs: prompt, parameters: { width: 768, height: 768, num_inference_steps: 20 } });
+        const response = await fetch(endpoint, { method: "POST", headers, body, signal: controller.signal });
+        clearTimeout(timeout);
+        if (response.status === 503) {
+          if (attempt === 0) { await new Promise((r) => setTimeout(r, 1500)); continue; }
+          await new Promise((r) => setTimeout(r, 2500));
+          const retryRes = await fetch(endpoint, { method: "POST", headers, body, signal: AbortSignal.timeout(20000) });
+          if (!retryRes.ok) continue;
+          const ct2 = retryRes.headers.get("content-type") || "";
+          if (!ct2.includes("image")) continue;
+          const buf2 = Buffer.from(await retryRes.arrayBuffer());
+          const sniff2 = (buf2[0]===0xff&&buf2[1]===0xd8)||(buf2[0]===0x89&&buf2[1]===0x50&&buf2[2]===0x4e&&buf2[3]===0x47);
+          if (!sniff2 || buf2.length < 5000) continue;
+          const ext2 = ct2.includes("png") ? "png" : "jpeg";
+          return `data:image/${ext2};base64,${buf2.toString("base64")}`;
+        }
+        if (!response.ok) {
+          if (attempt === 0 && (response.status === 429 || response.status >= 500)) {
+            await new Promise((r) => setTimeout(r, 500)); continue;
+          }
+          continue;
+        }
+        const contentType = response.headers.get("content-type") || "";
+        const buffer = Buffer.from(await response.arrayBuffer());
+        const sniff = (buffer[0]===0xff&&buffer[1]===0xd8)||(buffer[0]===0x89&&buffer[1]===0x50&&buffer[2]===0x4e&&buffer[3]===0x47);
+        if (!sniff || buffer.length < 5000) continue;
+        const ext = contentType.includes("png") ? "png" : "jpeg";
+        return `data:image/${ext};base64,${buffer.toString("base64")}`;
+      } catch (e: any) {
+        if (attempt === 0) { await new Promise((r) => setTimeout(r, 400)); continue; }
+        console.log(`HF model error (${model}):`, e.message);
+        continue;
       }
-      if (!response.ok) continue;
-      const contentType = response.headers.get("content-type") || "";
-      if (!contentType.includes("image")) continue;
-      const buffer = Buffer.from(await response.arrayBuffer());
-      if (buffer.length < 5000) continue;
-      const ext = contentType.includes("png") ? "png" : "jpeg";
-      return `data:image/${ext};base64,${buffer.toString("base64")}`;
-    } catch (e: any) {
-      console.log(`HF model error (${model}):`, e.message);
-      continue;
     }
   }
   throw new Error("All HuggingFace models failed");
@@ -266,18 +280,20 @@ export async function GET(req: NextRequest) {
   const fullPrompt = `${stylePrompt}, ${userPrompt}, sticker, white outline, die-cut sticker shape, clean background, vibrant colors, high quality`;
 
   // 依次尝试各生成接口（先快后慢，永远不要先跑长轮询！）
-  // Pollinations 链：最坏 52s  →  函数 59s 总预算 (Vercel 60s - 1s)
   const funcDeadline = Date.now() + 59000;
   let result: string | null = null;
   let source = "";
+  const errors: string[] = [];
 
   // 1. Pollinations — 绝大多数用户命中 1-3s；openai 是用户要求的第一版高质量
   {
     try {
       result = await generateWithPollinations(fullPrompt);
       source = "pollinations";
-    } catch (e) {
-      console.error("Pollinations failed:", e);
+    } catch (e: any) {
+      const m = "Pollinations: " + (e?.message || String(e)).slice(0, 120);
+      errors.push(m);
+      console.error(m);
     }
   }
 
@@ -286,9 +302,13 @@ export async function GET(req: NextRequest) {
     try {
       result = await generateWithHuggingFace(fullPrompt);
       source = "huggingface";
-    } catch (e) {
-      console.error("HuggingFace failed:", e);
+    } catch (e: any) {
+      const m = "HuggingFace: " + (e?.message || String(e)).slice(0, 120);
+      errors.push(m);
+      console.error(m);
     }
+  } else if (!result) {
+    errors.push("HuggingFace: skipped — only " + Math.round(funcDeadline - Date.now()) + "ms remaining (need 32s)");
   }
 
   // 3. OpenAI（如果配置了）— 单次 HTTP 10s
@@ -296,9 +316,13 @@ export async function GET(req: NextRequest) {
     try {
       result = await generateWithOpenAI(fullPrompt);
       source = "openai";
-    } catch (e) {
-      console.error("OpenAI failed:", e);
+    } catch (e: any) {
+      const m = "OpenAI: " + (e?.message || String(e)).slice(0, 120);
+      errors.push(m);
+      console.error(m);
     }
+  } else if (!result && process.env.OPENAI_API_KEY) {
+    errors.push("OpenAI: skipped — " + Math.round(funcDeadline - Date.now()) + "ms left (need 15s)");
   }
 
   // 4. Replicate（如果配置了）— 长轮询最坏 30s，只在剩余 >38s 时启动
@@ -306,15 +330,35 @@ export async function GET(req: NextRequest) {
     try {
       result = await generateWithReplicate(fullPrompt);
       source = "replicate";
-    } catch (e) {
-      console.error("Replicate failed:", e);
+    } catch (e: any) {
+      const m = "Replicate: " + (e?.message || String(e)).slice(0, 120);
+      errors.push(m);
+      console.error(m);
     }
+  } else if (!result && process.env.REPLICATE_API_TOKEN) {
+    errors.push("Replicate: skipped — " + Math.round(funcDeadline - Date.now()) + "ms left (need 38s)");
   }
 
   if (!result) {
+    const debug = {
+      elapsed_ms: 59000 - Math.round(funcDeadline - Date.now()),
+      env: {
+        hasHFToken: !!process.env.HUGGINGFACE_API_TOKEN,
+        hasOpenAI: !!process.env.OPENAI_API_KEY,
+        hasReplicate: !!process.env.REPLICATE_API_TOKEN,
+        hasCreem: !!process.env.CREEM_API_KEY,
+        hasSupabase: !!process.env.DATABASE_URL || !!supabaseAdmin,
+      },
+      errors,
+    };
+    console.error("[ALL GENERATORS FAILED]", JSON.stringify(debug));
     return NextResponse.json(
-      { success: false, error: "Image generation is temporarily unavailable. Please try again." },
-      { status: 502 }
+      {
+        success: false,
+        error: "Image generation is temporarily unavailable. Please try again.",
+        debug,
+      },
+      { status: 502 },
     );
   }
 
