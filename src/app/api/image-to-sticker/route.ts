@@ -13,6 +13,34 @@ const STYLE_PROMPTS: Record<string, string> = STYLES.reduce(
   {} as Record<string, string>,
 );
 
+// —— 人物性别锁词（与 /api/generate 对齐；解决开源模型把 musk/trump 画成女人的问题）——
+const MALE_CELEBS_IMG2STICKER = [
+  "elon musk","musk","elon","mark zuckerberg","zuckerberg","steve jobs","tim cook","bill gates",
+  "jack ma","donald trump","trump","joe biden","biden","barack obama","obama","vladimir putin","putin",
+  "xi jinping","kim jong un","modi","macron","zelensky","kanye west","tom cruise","brad pitt",
+  "leonardo dicaprio","michael jordan","lebron james","messi","lionel messi","cristiano ronaldo","ronaldo","cr7",
+  "david beckham","tiger woods","snoop dogg","eminem","drake","ren zhengfei","zhang yiming","lei jun","huang zheng",
+];
+const FEMALE_CELEBS_IMG2STICKER = [
+  "taylor swift","beyonce","lady gaga","rihanna","adele","miley cyrus","katy perry","shakira",
+  "kim kardashian","kylie jenner","gigi hadid","emma watson","scarlett johansson","angelina jolie","megan fox",
+  "marilyn monroe","audrey hepburn","michelle obama","hillary clinton","ivanka trump","melania trump",
+];
+const MW = ["\\bman\\b","\\bmen\\b","\\bmale\\b","\\bboy\\b","\\bguy\\b","\\bgentleman\\b","\\bhusband\\b","\\bfather\\b","\\bbrother\\b","\\bson\\b","\\bking\\b","\\bprince\\b","\\bactor\\b","\\bhero\\b"];
+const FW = ["\\bwoman\\b","\\bwomen\\b","\\bfemale\\b","\\bgirl\\b","\\blady\\b","\\bgal\\b","\\bwife\\b","\\bmother\\b","\\bmom\\b","\\bsister\\b","\\bdaughter\\b","\\bqueen\\b","\\bprincess\\b","\\bactress\\b","\\bheroine\\b"];
+
+function genderLock(prompt: string): string {
+  const lower = prompt.toLowerCase();
+  let m = 0, f = 0;
+  for (const n of MALE_CELEBS_IMG2STICKER) if (lower.includes(n)) { m += 2; break; }
+  for (const n of FEMALE_CELEBS_IMG2STICKER) if (lower.includes(n)) { f += 2; break; }
+  for (const w of MW) { try { if (new RegExp(w).test(lower)) m++; } catch {} }
+  for (const w of FW) { try { if (new RegExp(w).test(lower)) f++; } catch {} }
+  if (m > 0 && m > f) return prompt + ", middle-aged male subject, handsome man, correct male gender, masculine facial features";
+  if (f > 0 && f > m) return prompt + ", adult female subject, beautiful woman, correct female gender, feminine facial features";
+  return prompt;
+}
+
 // Creem Moderation API
 async function moderatePrompt(prompt: string, userId?: string): Promise<{ allowed: boolean; reason?: string }> {
   const apiKey = process.env.CREEM_API_KEY;
@@ -167,7 +195,8 @@ export async function POST(req: NextRequest) {
 
     const stylePrompt = STYLE_PROMPTS[style] || "sticker design";
     const userDesc = prompt || "sticker design based on uploaded image";
-    const fullPrompt = `${stylePrompt}, ${userDesc}, sticker, white outline, die-cut sticker shape, clean background, vibrant colors, high quality`;
+    const userDescLocked = genderLock(userDesc);
+    const fullPrompt = `${stylePrompt}, ${userDescLocked}, sticker, white outline, die-cut sticker shape, clean background, vibrant colors, high quality`;
 
     // 优先 Replicate image-to-image
     if (process.env.REPLICATE_API_TOKEN) {

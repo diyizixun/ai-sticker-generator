@@ -17,6 +17,90 @@ const STYLE_PROMPTS: Record<string, string> = STYLES.reduce(
   {} as Record<string, string>,
 );
 
+// 名人/关键词 → 性别锁词
+// 开源模型（Pollinations "openai" 实际上是 FLUX/SDXL）对人物一致性差 + 默认偏美颜女性脸，
+// 所以 musk/trump/biden 这类输入经常被画成女人 → 必须显式强化性别词。
+const MALE_CELEBS = [
+  // 科技圈
+  "elon musk", "musk", "elon",
+  "mark zuckerberg", "zuckerberg", "zuck",
+  "steve jobs", "tim cook", "bill gates", "larry page", "sergey brin",
+  "jack ma", "ma yun", "ren zhengfei", "li yanhong", "zhang yiming", "lei jun", "huang zheng",
+  "david choe", "joe rogan",
+  // 政治圈
+  "donald trump", "trump",
+  "joe biden", "biden",
+  "barack obama", "obama",
+  "vladimir putin", "putin",
+  "xi jinping", "jinping",
+  "kim jong un", "kim jong",
+  "modi", "narendra modi",
+  "emmanuel macron", "macron",
+  "volodymyr zelensky", "zelensky", "zelenskyy",
+  // 娱乐/体育
+  "kanye west", "kanye", "ye",
+  "tom cruise", "brad pitt", "leonardo dicaprio", "leo dicaprio",
+  "michael jordan", "lebron james", "messi", "lionel messi", "cristiano ronaldo", "ronaldo", "cr7",
+  "david beckham", "tiger woods",
+  "snoop dogg", "eminem", "drake",
+];
+const FEMALE_CELEBS = [
+  "taylor swift", "beyonce", "lady gaga", "rihanna", "adele",
+  "miley cyrus", "katy perry", "shakira", "jenifer lopez", "j lo",
+  "kim kardashian", "kylie jenner", "gigi hadid", "bella hadid",
+  "emma watson", "scarlett johansson", "angelina jolie", "megan fox",
+  "marilyn monroe", "audrey hepburn",
+  "michelle obama", "hillary clinton",
+  "ivanka trump", "melania trump",
+];
+const MALE_WORDS = [
+  "\\bman\\b", "\\bmen\\b", "\\bmale\\b", "\\bboy\\b", "\\bboys\\b",
+  "\\bguy\\b", "\\bguys\\b", "\\bgentleman\\b", "\\bgentlemen\\b",
+  "\\bhusband\\b", "\\bfather\\b", "\\bbrother\\b", "\\bson\\b",
+  "\\buncle\\b", "\\bgrandpa\\b", "\\bking\\b", "\\bprince\\b",
+  "\\bactor\\b", "\\bwaiter\\b", "\\bhero\\b",
+];
+const FEMALE_WORDS = [
+  "\\bwoman\\b", "\\bwomen\\b", "\\bfemale\\b", "\\bgirl\\b", "\\bgirls\\b",
+  "\\blady\\b", "\\bladies\\b", "\\bgal\\b", "\\bgals\\b",
+  "\\bwife\\b", "\\bmother\\b", "\\bmom\\b", "\\bsister\\b", "\\bdaughter\\b",
+  "\\baunt\\b", "\\bgrandma\\b", "\\bqueen\\b", "\\bprincess\\b",
+  "\\bactress\\b", "\\bwaitress\\b", "\\bheroine\\b",
+];
+
+function genderLockPrompt(prompt: string): string {
+  const lower = prompt.toLowerCase();
+  let addMale = 0;
+  let addFemale = 0;
+
+  // 1) 名人白名单
+  for (const name of MALE_CELEBS) if (lower.includes(name)) { addMale += 2; break; }
+  for (const name of FEMALE_CELEBS) if (lower.includes(name)) { addFemale += 2; break; }
+
+  // 2) 显式性别词（正则 \b 单词边界）
+  for (const w of MALE_WORDS) { try { if (new RegExp(w).test(lower)) addMale++; } catch {} }
+  for (const w of FEMALE_WORDS) { try { if (new RegExp(w).test(lower)) addFemale++; } catch {} }
+
+  // 3) 只要男或女其中一个胜出，就显式加性别/年龄锁词
+  //    注意：只加一侧，不污染两边都有（couple/family）的情况
+  if (addMale > 0 && addMale > addFemale) {
+    const suffix = lower.includes("young") || lower.includes("boy")
+      ? " young male subject, man, boy, correct male gender"
+      : " middle-aged male subject, handsome man, correct male gender, masculine facial features";
+    // 只有原 prompt 里还没这些词才加
+    const needed = suffix.split(/\s*,\s*/).filter(t => !lower.includes(t.replace(/subject|correct|gender|masculine|facial features/,"").trim())).join(", ");
+    if (needed) return prompt + ", " + suffix;
+    return prompt;
+  }
+  if (addFemale > 0 && addFemale > addMale) {
+    const suffix = lower.includes("young") || lower.includes("girl")
+      ? " young female subject, woman, girl, correct female gender"
+      : " adult female subject, beautiful woman, correct female gender, feminine facial features";
+    return prompt + ", " + suffix;
+  }
+  return prompt;
+}
+
 // Creem Moderation API
 async function moderatePrompt(prompt: string, userId?: string): Promise<{ allowed: boolean; reason?: string }> {
   const apiKey = process.env.CREEM_API_KEY;
@@ -278,7 +362,8 @@ export async function GET(req: NextRequest) {
   }
 
   const stylePrompt = STYLE_PROMPTS[styleId] || "sticker design";
-  const fullPrompt = `${stylePrompt}, ${userPrompt}, sticker, white outline, die-cut sticker shape, clean background, vibrant colors, high quality`;
+  const userPromptLocked = genderLockPrompt(userPrompt);
+  const fullPrompt = `${stylePrompt}, ${userPromptLocked}, sticker, white outline, die-cut sticker shape, clean background, vibrant colors, high quality`;
 
   // 依次尝试各生成接口（先快后慢，永远不要先跑长轮询！）
   const funcDeadline = Date.now() + 59000;
