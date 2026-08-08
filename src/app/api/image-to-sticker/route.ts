@@ -45,19 +45,27 @@ async function moderatePrompt(prompt: string, userId?: string): Promise<{ allowe
 // turbo              66%成功率  1-14s    27-51KB   速度快，细节略差
 // dalle3             33%成功率  3s+      55-75KB   A+顶级质量，但成功率低
 // default/flux       约 40%     10-45s   30-50KB   慢速兜底
+// 二进制 magic bytes 判定真图片（不依赖可能被 proxy/CF 篡改的 content-type header）
+function sniffImage(bytes: Buffer): { ok: true; ext: "jpeg" | "png" } | { ok: false } {
+  if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xd8) return { ok: true, ext: "jpeg" };
+  if (bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) {
+    return { ok: true, ext: "png" };
+  }
+  return { ok: false };
+}
+
 async function generateWithPollinations(prompt: string): Promise<string> {
   const encoded = encodeURIComponent(prompt);
   const seed = Math.floor(Math.random() * 1000000);
 
   // ⚠️ 总预算 < Vercel maxDuration(60s) → 链内 48s，给 rembg/HF 留 12s
-  // 质量阈值降低 + HTTP 429/500/超时自动重试（换 seed），应对今天 Pollinations 服务端抖动
   const MIN_KB: Record<string, number> = {
-    openai: 28,
-    turbo: 18,
-    dalle3: 35,
-    flux: 15,
+    openai: 22,
+    turbo: 15,
+    dalle3: 28,
+    flux: 12,
   };
-  const perAttemptTimeoutMs = 12000;
+  const perAttemptTimeoutMs = 11000;
   const attempts = [
     { id: "openai", qs: `model=openai` },              // ① 用户最怀念的「第一版」高质量
     { id: "turbo",  qs: `model=turbo` },               // ② 成功率最高（66%）速度快
@@ -69,7 +77,6 @@ async function generateWithPollinations(prompt: string): Promise<string> {
   for (let i = 0; i < attempts.length; i++) {
     if (Date.now() >= overallDeadline) break;
     const model = attempts[i];
-    // 每个模型 2 次尝试：HTTP 429/500/超时/低于阈值 → 换 seed +150ms 再试一次
     for (let retry = 0; retry < 2; retry++) {
       if (Date.now() >= overallDeadline) break;
       const trySeed = seed + i * 1013904223 + retry * 2654435761;
@@ -79,39 +86,48 @@ async function generateWithPollinations(prompt: string): Promise<string> {
       console.log(`[Image2Sticker] Attempt ${i + 1} (${model.id}) retry=${retry}`);
       const remaining = overallDeadline - Date.now();
       const thisTimeout = Math.min(perAttemptTimeoutMs, Math.max(3000, remaining));
-      if (retry > 0) await new Promise((r) => setTimeout(r, 150));
+      if (retry > 0) await new Promise((r) => setTimeout(r, 250));
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), thisTimeout);
       try {
         const startTime = Date.now();
         const response = await fetch(url, {
           signal: controller.signal,
-          headers: { Accept: "image/*", "Cache-Control": "no-cache" },
+          headers: {
+            Accept: "image/webp,image/avif,image/*;q=0.9,*/*;q=0.8",
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            Pragma: "no-cache",
+            "User-Agent":
+              "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
+          },
+          redirect: "follow",
         });
         const elapsed = Date.now() - startTime;
         clearTimeout(timeout);
-        if ((response.status === 429 || response.status === 500 || response.status === 502) && retry === 0) {
-          continue; // 瞬时限流 → 重试
-        }
+        const status = response.status;
+        const transientFail = status === 429 || status === 500 || status === 502 || status === 503 || status === 504;
+        if (transientFail && retry === 0) continue;
         if (!response.ok) break;
-        const contentType = response.headers.get("content-type") || "";
-        if (!contentType.includes("image")) break;
         const buffer = Buffer.from(await response.arrayBuffer());
+        const sniff = sniffImage(buffer);
+        if (!sniff.ok) {
+          if (retry === 0) continue; // 2xx 但不是真图片（CF HTML/反爬）→ 重试
+          break;
+        }
         const minBytes = MIN_KB[model.id] * 1024;
         console.log(
-          `[Image2Sticker] ${model.id} returned ${(buffer.length / 1024).toFixed(1)}KB in ${elapsed}ms (need >=${MIN_KB[model.id]}KB)`,
+          `[Image2Sticker] ${model.id} ${sniff.ext} ${(buffer.length / 1024).toFixed(1)}KB ${elapsed}ms`,
         );
         const isLast = i === attempts.length - 1;
         if (buffer.length < minBytes) {
-          if (retry === 0) continue; // 换 seed 再试一次
+          if (retry === 0) continue;
           if (!isLast) break;
-          else if (buffer.length < 10000) break;
+          else if (buffer.length < 8000) break;
         }
-        const ext = contentType.includes("png") ? "png" : "jpeg";
         console.log(
-          `[Image2Sticker] ✅ SUCCESS with ${model.id} — ${(buffer.length / 1024).toFixed(0)}KB · ${elapsed}ms`,
+          `[Image2Sticker] ✅ SUCCESS ${model.id} — ${(buffer.length / 1024).toFixed(0)}KB ${sniff.ext} · ${elapsed}ms`,
         );
-        return `data:image/${ext};base64,${buffer.toString("base64")}`;
+        return `data:image/${sniff.ext};base64,${buffer.toString("base64")}`;
       } catch (e: any) {
         clearTimeout(timeout);
         if (retry === 0 && (e.name === "AbortError" || /timeout|abort/i.test(e.message))) continue;
