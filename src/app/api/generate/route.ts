@@ -243,6 +243,7 @@ async function generateWithHuggingFace(prompt: string): Promise<string> {
     "black-forest-labs/FLUX.1-schnell",
     "stabilityai/stable-diffusion-xl-base-1.0",
   ];
+  const hfErrors: string[] = [];
   for (const model of models) {
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
@@ -266,19 +267,23 @@ async function generateWithHuggingFace(prompt: string): Promise<string> {
         const response = await fetch(endpoint, { method: "POST", headers, body, signal: controller.signal });
         clearTimeout(timeout);
         if (response.status === 503) {
+          hfErrors.push(`${model}#${attempt}: 503 model loading`);
           if (attempt === 0) { await new Promise((r) => setTimeout(r, 1500)); continue; }
           await new Promise((r) => setTimeout(r, 2500));
           const retryRes = await fetch(endpoint, { method: "POST", headers, body, signal: AbortSignal.timeout(20000) });
-          if (!retryRes.ok) continue;
+          if (!retryRes.ok) { hfErrors.push(`${model}#${attempt} retry: ${retryRes.status}`); continue; }
           const ct2 = retryRes.headers.get("content-type") || "";
-          if (!ct2.includes("image")) continue;
+          if (!ct2.includes("image")) { hfErrors.push(`${model}#${attempt} retry: bad CT ${ct2}`); continue; }
           const buf2 = Buffer.from(await retryRes.arrayBuffer());
           const sniff2 = (buf2[0]===0xff&&buf2[1]===0xd8)||(buf2[0]===0x89&&buf2[1]===0x50&&buf2[2]===0x4e&&buf2[3]===0x47);
-          if (!sniff2 || buf2.length < 5000) continue;
+          if (!sniff2 || buf2.length < 5000) { hfErrors.push(`${model}#${attempt} retry: sniff fail ${buf2.length}B`); continue; }
           const ext2 = ct2.includes("png") ? "png" : "jpeg";
           return `data:image/${ext2};base64,${buf2.toString("base64")}`;
         }
         if (!response.ok) {
+          let detail = "";
+          try { detail = (await response.text()).slice(0, 100); } catch {}
+          hfErrors.push(`${model}#${attempt}: ${response.status} ${detail}`);
           if (attempt === 0 && (response.status === 429 || response.status >= 500)) {
             await new Promise((r) => setTimeout(r, 500)); continue;
           }
@@ -287,17 +292,17 @@ async function generateWithHuggingFace(prompt: string): Promise<string> {
         const contentType = response.headers.get("content-type") || "";
         const buffer = Buffer.from(await response.arrayBuffer());
         const sniff = (buffer[0]===0xff&&buffer[1]===0xd8)||(buffer[0]===0x89&&buffer[1]===0x50&&buffer[2]===0x4e&&buffer[3]===0x47);
-        if (!sniff || buffer.length < 5000) continue;
+        if (!sniff || buffer.length < 5000) { hfErrors.push(`${model}#${attempt}: sniff fail ${buffer.length}B CT=${contentType}`); continue; }
         const ext = contentType.includes("png") ? "png" : "jpeg";
         return `data:image/${ext};base64,${buffer.toString("base64")}`;
       } catch (e: any) {
+        hfErrors.push(`${model}#${attempt}: ${e.name} ${e.message?.slice(0,80)}`);
         if (attempt === 0) { await new Promise((r) => setTimeout(r, 400)); continue; }
-        console.log(`HF model error (${model}):`, e.message);
         continue;
       }
     }
   }
-  throw new Error("All HuggingFace models failed");
+  throw new Error("All HF models failed [" + hfErrors.join(" | ") + "]");
 }
 
 // GET: 免费生成
