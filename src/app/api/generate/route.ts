@@ -17,42 +17,82 @@ const STYLE_PROMPTS: Record<string, string> = STYLES.reduce(
   {} as Record<string, string>,
 );
 
-// 名人/关键词 → 性别锁词
-// 开源模型（Pollinations "openai" 实际上是 FLUX/SDXL）对人物一致性差 + 默认偏美颜女性脸，
-// 所以 musk/trump/biden 这类输入经常被画成女人 → 必须显式强化性别词。
-const MALE_CELEBS = [
+// 名人面部特征数据库 — 开源模型不认识名人名字，
+// 必须注入详细五官描述才能生成相似的面孔
+// 格式: [匹配关键词, 面部特征描述]
+const CELEB_TRAITS: [string, string][] = [
   // 科技圈
-  "elon musk", "musk", "elon",
-  "mark zuckerberg", "zuckerberg", "zuck",
-  "steve jobs", "tim cook", "bill gates", "larry page", "sergey brin",
-  "jack ma", "ma yun", "ren zhengfei", "li yanhong", "zhang yiming", "lei jun", "huang zheng",
-  "david choe", "joe rogan",
+  ["elon musk", "elon musk lookalike: balding man with short brown hair, receding hairline, square jaw, blue eyes, fair skin, mid-50s, slight double chin, confident expression, stocky build"],
+  ["musk", "musk lookalike: balding man with short brown hair, receding hairline, square jaw, blue eyes, fair skin, mid-50s, stocky build"],
+  ["elon", "man resembling elon musk: balding short brown hair, square jaw, blue eyes, fair skin, mid-50s"],
+  ["mark zuckerberg", "zuckerberg lookalike: short curly brown hair, pale skin, blue eyes, narrow face, thin lips, young man, robotic expression"],
+  ["zuckerberg", "zuckerberg lookalike: short curly brown hair, pale skin, blue eyes, narrow face, thin lips"],
+  ["zuck", "zuckerberg lookalike: short curly brown hair, pale skin, blue eyes, narrow face"],
+  ["steve jobs", "steve jobs lookalike: bald head, gray stubble beard, round glasses, gaunt face, fair skin, middle-aged man"],
+  ["tim cook", "tim cook lookalike: short gray hair, clean shaven, fair skin, blue eyes, slim face, middle-aged man"],
+  ["bill gates", "bill gates lookalike: balding with glasses, fair skin, blue eyes, round face, middle-aged man"],
+  ["jack ma", "jack ma lookalike: balding man, small stature, round face, dark eyes, East Asian, glasses, distinctive smile"],
+  ["ma yun", "jack ma lookalike: balding man, small stature, round face, dark eyes, East Asian, glasses"],
+  ["ren zhengfei", "elderly Chinese man, balding gray hair, square glasses, weathered face, severe expression"],
+  ["zhang yiming", "young Chinese man, short black hair, glasses, slim face, neutral expression"],
+  ["lei jun", "middle-aged Chinese man, short black hair, round face, glasses, energetic smile"],
   // 政治圈
-  "donald trump", "trump",
-  "joe biden", "biden",
-  "barack obama", "obama",
-  "vladimir putin", "putin",
-  "xi jinping", "jinping",
-  "kim jong un", "kim jong",
-  "modi", "narendra modi",
-  "emmanuel macron", "macron",
-  "volodymyr zelensky", "zelensky", "zelenskyy",
+  ["donald trump", "trump lookalike: blonde comb-over hairstyle, orange-tinted skin, blue eyes, broad face, pursed lips, heavyset build, late 70s man, distinctive squint"],
+  ["trump", "trump lookalike: blonde comb-over hair, orange skin, blue eyes, broad face, pursed lips, late 70s"],
+  ["joe biden", "biden lookalike: white thinning hair, blue eyes, fair skin, aviator sunglasses, wrinkled face, elderly man, warm smile"],
+  ["biden", "biden lookalike: white thinning hair, blue eyes, fair skin, wrinkled elderly face, warm smile"],
+  ["barack obama", "obama lookalike: short cropped black hair, dark brown skin, brown eyes, slim face, warm smile, middle-aged Black man"],
+  ["obama", "obama lookalike: short cropped black hair, dark brown skin, brown eyes, slim face, warm smile"],
+  ["vladimir putin", "putin lookalike: balding blonde hair, blue eyes, pale skin, stern expression, compact build, late 60s man"],
+  ["putin", "putin lookalike: balding blonde hair, blue eyes, pale skin, stern expression, late 60s"],
+  ["xi jinping", "Chinese man, short black hair, broad face, dark eyes, portly build, stern expression, middle-aged"],
+  ["jinping", "Chinese man, short black hair, broad face, dark eyes, portly build, stern expression"],
+  ["kim jong un", "kim jong un lookalike: short black buzzcut, round flat face, dark eyes, overweight, East Asian, distinctive flat-top haircut"],
+  ["kim jong", "kim jong un lookalike: short black buzzcut, round face, dark eyes, overweight, East Asian"],
+  ["narendra modi", "modi lookalike: white hair, gray beard, dark skin, Indian man, traditional expression, elderly"],
+  ["modi", "modi lookalike: white hair, gray beard, dark skin, Indian man, elderly"],
+  ["emmanuel macron", "macron lookalike: short dark hair, blue eyes, fair skin, slim face, middle-aged French man"],
+  ["macron", "macron lookalike: short dark hair, blue eyes, fair skin, slim face, middle-aged"],
+  ["zelensky", "zelensky lookalike: short brown hair, brown eyes, fair skin, stubble beard, olive green t-shirt, middle-aged man"],
+  ["zelenskyy", "zelensky lookalike: short brown hair, brown eyes, fair skin, stubble beard, middle-aged man"],
   // 娱乐/体育
-  "kanye west", "kanye", "ye",
-  "tom cruise", "brad pitt", "leonardo dicaprio", "leo dicaprio",
-  "michael jordan", "lebron james", "messi", "lionel messi", "cristiano ronaldo", "ronaldo", "cr7",
-  "david beckham", "tiger woods",
-  "snoop dogg", "eminem", "drake",
+  ["kanye west", "kanye west lookalike: bald head, brown skin, brown eyes, full beard, stocky build, confident expression"],
+  ["kanye", "kanye west lookalike: bald head, brown skin, brown eyes, full beard"],
+  ["tom cruise", "tom cruise lookalike: short brown hair, blue eyes, fair skin, square jaw, distinctive crooked teeth, middle-aged man"],
+  ["brad pitt", "brad pitt lookalike: long blonde hair, blue eyes, fair skin, strong jaw, goatee, middle-aged man"],
+  ["leonardo dicaprio", "dicaprio lookalike: slicked back blonde hair, blue eyes, fair skin, round face, goatee, middle-aged man"],
+  ["leo dicaprio", "dicaprio lookalike: slicked back blonde hair, blue eyes, fair skin, round face, goatee"],
+  ["michael jordan", "jordan lookalike: bald head, dark brown skin, brown eyes, tall athletic build, distinctive ear shape, Black man"],
+  ["lebron james", "lebron lookalike: short black hair, dark brown skin, brown eyes, tall muscular build, beard, Black man"],
+  ["messi", "messi lookalike: short brown hair, brown eyes, fair skin, short beard, compact build, Argentine man"],
+  ["lionel messi", "messi lookalike: short brown hair, brown eyes, fair skin, short beard, compact build"],
+  ["cristiano ronaldo", "ronaldo lookalike: short dark hair, brown eyes, olive skin, muscular build, distinctive jaw, Portuguese man"],
+  ["ronaldo", "ronaldo lookalike: short dark hair, brown eyes, olive skin, muscular build, distinctive jaw"],
+  ["cr7", "ronaldo lookalike: short dark hair, brown eyes, olive skin, muscular build, distinctive jaw"],
+  ["david beckham", "beckham lookalike: short blonde hair, blue eyes, fair skin, handsome face, tattoos, slim build"],
+  ["tiger woods", "tiger woods lookalike: short black hair, brown skin, brown eyes, goatee, athletic build, mixed race man"],
+  ["snoop dogg", "snoop dogg lookalike: tall slim build, long braided black hair, dark brown skin, brown eyes, distinctive goatee, sunglasses"],
+  ["eminem", "eminem lookalike: short bleached blonde hair, blue eyes, fair skin, slim face, Caucasian man"],
+  ["drake", "drake lookalike: short black hair, dark beard, brown skin, brown eyes, stocky build, Black man"],
+  // 女性名人
+  ["taylor swift", "taylor swift lookalike: long blonde straight hair, blue eyes, fair skin, red lips, slim face, young woman"],
+  ["beyonce", "beyonce lookalike: long blonde wavy hair, light brown skin, brown eyes, curvy build, glamorous woman"],
+  ["lady gaga", "lady gaga lookalike: long blonde hair, blue eyes, fair skin, bold makeup, theatrical expression, young woman"],
+  ["rihanna", "rihanna lookalike: short dark hair, brown skin, green eyes, full lips, Barbadian woman, glamorous"],
+  ["adele", "adele lookalike: long red-blonde hair, blue eyes, fair skin, round face, fuller figure, British woman"],
+  ["miley cyrus", "miley cyrus lookalike: short blonde hair, blue eyes, fair skin, slim face, young woman"],
+  ["katy perry", "katy perry lookalike: long dark hair, blue eyes, fair skin, full lips, young woman"],
+  ["shakira", "shakira lookalike: long blonde wavy hair, brown eyes, fair skin, Colombian woman, slim build"],
+  ["kim kardashian", "kim kardashian lookalike: long dark hair, olive skin, brown eyes, full lips, curvy figure, glamorous"],
+  ["kylie jenner", "kylie jenner lookalike: long dark hair, olive skin, full lips, young woman, glamorous makeup"],
+  ["emma watson", "emma watson lookalike: short brown hair, brown eyes, fair skin, slim face, British young woman"],
+  ["scarlett johansson", "scarlett johansson lookalike: short blonde hair, blue eyes, fair skin, full lips, curvy figure"],
+  ["angelina jolie", "angelina jolie lookalike: long dark hair, blue eyes, fair skin, full lips, distinctive cheekbones"],
+  ["megan fox", "megan fox lookalike: long dark hair, blue eyes, fair skin, full lips, distinctive eyebrows"],
+  ["marilyn monroe", "marilyn monroe lookalike: short blonde curly hair, blue eyes, fair skin, beauty mark, red lips, 1950s glamour"],
+  ["audrey hepburn", "audrey hepburn lookalike: short dark hair, brown eyes, fair skin, slim face, elegant 1950s style"],
 ];
-const FEMALE_CELEBS = [
-  "taylor swift", "beyonce", "lady gaga", "rihanna", "adele",
-  "miley cyrus", "katy perry", "shakira", "jenifer lopez", "j lo",
-  "kim kardashian", "kylie jenner", "gigi hadid", "bella hadid",
-  "emma watson", "scarlett johansson", "angelina jolie", "megan fox",
-  "marilyn monroe", "audrey hepburn",
-  "michelle obama", "hillary clinton",
-  "ivanka trump", "melania trump",
-];
+
 const MALE_WORDS = [
   "\\bman\\b", "\\bmen\\b", "\\bmale\\b", "\\bboy\\b", "\\bboys\\b",
   "\\bguy\\b", "\\bguys\\b", "\\bgentleman\\b", "\\bgentlemen\\b",
@@ -68,35 +108,27 @@ const FEMALE_WORDS = [
   "\\bactress\\b", "\\bwaitress\\b", "\\bheroine\\b",
 ];
 
-function genderLockPrompt(prompt: string): string {
+function enhancePrompt(prompt: string): string {
   const lower = prompt.toLowerCase();
+
+  // 1) 名人面部特征增强 — 找到匹配的名人，注入详细五官描述
+  for (const [name, traits] of CELEB_TRAITS) {
+    if (lower.includes(name)) {
+      return prompt + ", " + traits;
+    }
+  }
+
+  // 2) 没匹配到名人 → 通用性别词增强（保留原有逻辑作为 fallback）
   let addMale = 0;
   let addFemale = 0;
-
-  // 1) 名人白名单
-  for (const name of MALE_CELEBS) if (lower.includes(name)) { addMale += 2; break; }
-  for (const name of FEMALE_CELEBS) if (lower.includes(name)) { addFemale += 2; break; }
-
-  // 2) 显式性别词（正则 \b 单词边界）
   for (const w of MALE_WORDS) { try { if (new RegExp(w).test(lower)) addMale++; } catch {} }
   for (const w of FEMALE_WORDS) { try { if (new RegExp(w).test(lower)) addFemale++; } catch {} }
 
-  // 3) 只要男或女其中一个胜出，就显式加性别/年龄锁词
-  //    注意：只加一侧，不污染两边都有（couple/family）的情况
   if (addMale > 0 && addMale > addFemale) {
-    const suffix = lower.includes("young") || lower.includes("boy")
-      ? " young male subject, man, boy, correct male gender"
-      : " middle-aged male subject, handsome man, correct male gender, masculine facial features";
-    // 只有原 prompt 里还没这些词才加
-    const needed = suffix.split(/\s*,\s*/).filter(t => !lower.includes(t.replace(/subject|correct|gender|masculine|facial features/,"").trim())).join(", ");
-    if (needed) return prompt + ", " + suffix;
-    return prompt;
+    return prompt + ", middle-aged male subject, masculine facial features, handsome man";
   }
   if (addFemale > 0 && addFemale > addMale) {
-    const suffix = lower.includes("young") || lower.includes("girl")
-      ? " young female subject, woman, girl, correct female gender"
-      : " adult female subject, beautiful woman, correct female gender, feminine facial features";
-    return prompt + ", " + suffix;
+    return prompt + ", adult female subject, feminine facial features, beautiful woman";
   }
   return prompt;
 }
@@ -154,13 +186,13 @@ async function generateWithPollinations(prompt: string, deadline?: number): Prom
   const longBudget = budgetMs >= 35000;
 
   const MIN_KB: Record<string, number> = {
-    openai: 20,
-    turbo: 14,
-    dalle3: 25,
-    sana: 12,
-    dreamshaper: 12,
-    flux: 11,
-    default: 9,
+    openai: 25,
+    turbo: 20,
+    dalle3: 30,
+    sana: 20,
+    dreamshaper: 20,
+    flux: 18,
+    default: 15,
   };
   const R2 = longBudget ? 3 : 2; // 长预算（54s）→ 前 4 模型重试 3 次，短预算 2 次
   const attempts = [
@@ -351,8 +383,8 @@ export async function GET(req: NextRequest) {
   }
 
   const stylePrompt = STYLE_PROMPTS[styleId] || "sticker design";
-  const userPromptLocked = genderLockPrompt(userPrompt);
-  const fullPrompt = `${stylePrompt}, ${userPromptLocked}, sticker, white outline, die-cut sticker shape, clean background, vibrant colors, high quality`;
+  const userPromptEnhanced = enhancePrompt(userPrompt);
+  const fullPrompt = `${stylePrompt}, ${userPromptEnhanced}, sticker, white outline, die-cut sticker shape, clean background, vibrant colors, high quality`;
 
   // 依次尝试各生成接口（先快后慢，永远不要先跑长轮询！）
   const funcDeadline = Date.now() + 59000;

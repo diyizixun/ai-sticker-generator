@@ -13,31 +13,73 @@ const STYLE_PROMPTS: Record<string, string> = STYLES.reduce(
   {} as Record<string, string>,
 );
 
-// —— 人物性别锁词（与 /api/generate 对齐；解决开源模型把 musk/trump 画成女人的问题）——
-const MALE_CELEBS_IMG2STICKER = [
-  "elon musk","musk","elon","mark zuckerberg","zuckerberg","steve jobs","tim cook","bill gates",
-  "jack ma","donald trump","trump","joe biden","biden","barack obama","obama","vladimir putin","putin",
-  "xi jinping","kim jong un","modi","macron","zelensky","kanye west","tom cruise","brad pitt",
-  "leonardo dicaprio","michael jordan","lebron james","messi","lionel messi","cristiano ronaldo","ronaldo","cr7",
-  "david beckham","tiger woods","snoop dogg","eminem","drake","ren zhengfei","zhang yiming","lei jun","huang zheng",
-];
-const FEMALE_CELEBS_IMG2STICKER = [
-  "taylor swift","beyonce","lady gaga","rihanna","adele","miley cyrus","katy perry","shakira",
-  "kim kardashian","kylie jenner","gigi hadid","emma watson","scarlett johansson","angelina jolie","megan fox",
-  "marilyn monroe","audrey hepburn","michelle obama","hillary clinton","ivanka trump","melania trump",
+// —— 名人面部特征增强（与 /api/generate 对齐）——
+const CELEB_TRAITS_I2S: [string, string][] = [
+  ["elon musk", "elon musk lookalike: balding man with short brown hair, receding hairline, square jaw, blue eyes, fair skin, mid-50s, stocky build"],
+  ["musk", "musk lookalike: balding man with short brown hair, receding hairline, square jaw, blue eyes, fair skin, mid-50s"],
+  ["elon", "man resembling elon musk: balding short brown hair, square jaw, blue eyes, fair skin, mid-50s"],
+  ["zuckerberg", "zuckerberg lookalike: short curly brown hair, pale skin, blue eyes, narrow face, thin lips"],
+  ["steve jobs", "steve jobs lookalike: bald head, gray stubble beard, round glasses, gaunt face, fair skin"],
+  ["tim cook", "tim cook lookalike: short gray hair, clean shaven, fair skin, blue eyes, slim face"],
+  ["bill gates", "bill gates lookalike: balding with glasses, fair skin, blue eyes, round face"],
+  ["jack ma", "jack ma lookalike: balding man, small stature, round face, dark eyes, East Asian, glasses"],
+  ["donald trump", "trump lookalike: blonde comb-over hairstyle, orange-tinted skin, blue eyes, broad face, pursed lips, late 70s"],
+  ["trump", "trump lookalike: blonde comb-over hair, orange skin, blue eyes, broad face, pursed lips"],
+  ["joe biden", "biden lookalike: white thinning hair, blue eyes, fair skin, wrinkled elderly face, warm smile"],
+  ["biden", "biden lookalike: white thinning hair, blue eyes, fair skin, wrinkled face, elderly"],
+  ["barack obama", "obama lookalike: short cropped black hair, dark brown skin, brown eyes, slim face, warm smile"],
+  ["obama", "obama lookalike: short cropped black hair, dark brown skin, brown eyes, slim face"],
+  ["vladimir putin", "putin lookalike: balding blonde hair, blue eyes, pale skin, stern expression, late 60s"],
+  ["putin", "putin lookalike: balding blonde hair, blue eyes, pale skin, stern expression"],
+  ["xi jinping", "Chinese man, short black hair, broad face, dark eyes, portly build, stern expression"],
+  ["kim jong un", "kim jong un lookalike: short black buzzcut, round flat face, dark eyes, overweight, East Asian"],
+  ["modi", "modi lookalike: white hair, gray beard, dark skin, Indian man, elderly"],
+  ["macron", "macron lookalike: short dark hair, blue eyes, fair skin, slim face, middle-aged"],
+  ["zelensky", "zelensky lookalike: short brown hair, brown eyes, fair skin, stubble beard, middle-aged man"],
+  ["kanye west", "kanye west lookalike: bald head, brown skin, brown eyes, full beard"],
+  ["kanye", "kanye west lookalike: bald head, brown skin, brown eyes, full beard"],
+  ["tom cruise", "tom cruise lookalike: short brown hair, blue eyes, fair skin, square jaw"],
+  ["brad pitt", "brad pitt lookalike: long blonde hair, blue eyes, fair skin, strong jaw, goatee"],
+  ["leonardo dicaprio", "dicaprio lookalike: slicked back blonde hair, blue eyes, fair skin, round face, goatee"],
+  ["leo dicaprio", "dicaprio lookalike: slicked back blonde hair, blue eyes, fair skin, round face"],
+  ["michael jordan", "jordan lookalike: bald head, dark brown skin, brown eyes, tall athletic build"],
+  ["lebron james", "lebron lookalike: short black hair, dark brown skin, brown eyes, tall muscular build, beard"],
+  ["messi", "messi lookalike: short brown hair, brown eyes, fair skin, short beard, compact build"],
+  ["lionel messi", "messi lookalike: short brown hair, brown eyes, fair skin, short beard"],
+  ["cristiano ronaldo", "ronaldo lookalike: short dark hair, brown eyes, olive skin, muscular build, distinctive jaw"],
+  ["ronaldo", "ronaldo lookalike: short dark hair, brown eyes, olive skin, muscular build"],
+  ["cr7", "ronaldo lookalike: short dark hair, brown eyes, olive skin, muscular build"],
+  ["david beckham", "beckham lookalike: short blonde hair, blue eyes, fair skin, handsome face"],
+  ["tiger woods", "tiger woods lookalike: short black hair, brown skin, brown eyes, goatee"],
+  ["snoop dogg", "snoop dogg lookalike: tall slim build, long braided black hair, dark brown skin, goatee"],
+  ["eminem", "eminem lookalike: short bleached blonde hair, blue eyes, fair skin, slim face"],
+  ["drake", "drake lookalike: short black hair, dark beard, brown skin, brown eyes, stocky build"],
+  ["taylor swift", "taylor swift lookalike: long blonde straight hair, blue eyes, fair skin, red lips, slim face"],
+  ["beyonce", "beyonce lookalike: long blonde wavy hair, light brown skin, brown eyes, curvy build"],
+  ["lady gaga", "lady gaga lookalike: long blonde hair, blue eyes, fair skin, bold makeup"],
+  ["rihanna", "rihanna lookalike: short dark hair, brown skin, green eyes, full lips"],
+  ["adele", "adele lookalike: long red-blonde hair, blue eyes, fair skin, round face"],
+  ["kim kardashian", "kim kardashian lookalike: long dark hair, olive skin, brown eyes, full lips, curvy figure"],
+  ["emma watson", "emma watson lookalike: short brown hair, brown eyes, fair skin, slim face"],
+  ["scarlett johansson", "scarlett johansson lookalike: short blonde hair, blue eyes, fair skin, full lips"],
+  ["angelina jolie", "angelina jolie lookalike: long dark hair, blue eyes, fair skin, full lips, distinctive cheekbones"],
+  ["megan fox", "megan fox lookalike: long dark hair, blue eyes, fair skin, full lips"],
+  ["marilyn monroe", "marilyn monroe lookalike: short blonde curly hair, blue eyes, fair skin, beauty mark, red lips"],
+  ["audrey hepburn", "audrey hepburn lookalike: short dark hair, brown eyes, fair skin, slim face, elegant"],
 ];
 const MW = ["\\bman\\b","\\bmen\\b","\\bmale\\b","\\bboy\\b","\\bguy\\b","\\bgentleman\\b","\\bhusband\\b","\\bfather\\b","\\bbrother\\b","\\bson\\b","\\bking\\b","\\bprince\\b","\\bactor\\b","\\bhero\\b"];
 const FW = ["\\bwoman\\b","\\bwomen\\b","\\bfemale\\b","\\bgirl\\b","\\blady\\b","\\bgal\\b","\\bwife\\b","\\bmother\\b","\\bmom\\b","\\bsister\\b","\\bdaughter\\b","\\bqueen\\b","\\bprincess\\b","\\bactress\\b","\\bheroine\\b"];
 
-function genderLock(prompt: string): string {
+function enhancePrompt(prompt: string): string {
   const lower = prompt.toLowerCase();
+  for (const [name, traits] of CELEB_TRAITS_I2S) {
+    if (lower.includes(name)) return prompt + ", " + traits;
+  }
   let m = 0, f = 0;
-  for (const n of MALE_CELEBS_IMG2STICKER) if (lower.includes(n)) { m += 2; break; }
-  for (const n of FEMALE_CELEBS_IMG2STICKER) if (lower.includes(n)) { f += 2; break; }
   for (const w of MW) { try { if (new RegExp(w).test(lower)) m++; } catch {} }
   for (const w of FW) { try { if (new RegExp(w).test(lower)) f++; } catch {} }
-  if (m > 0 && m > f) return prompt + ", middle-aged male subject, handsome man, correct male gender, masculine facial features";
-  if (f > 0 && f > m) return prompt + ", adult female subject, beautiful woman, correct female gender, feminine facial features";
+  if (m > 0 && m > f) return prompt + ", middle-aged male subject, masculine facial features, handsome man";
+  if (f > 0 && f > m) return prompt + ", adult female subject, feminine facial features, beautiful woman";
   return prompt;
 }
 
@@ -196,7 +238,7 @@ export async function POST(req: NextRequest) {
 
     const stylePrompt = STYLE_PROMPTS[style] || "sticker design";
     const userDesc = prompt || "sticker design based on uploaded image";
-    const userDescLocked = genderLock(userDesc);
+    const userDescLocked = enhancePrompt(userDesc);
     const fullPrompt = `${stylePrompt}, ${userDescLocked}, sticker, white outline, die-cut sticker shape, clean background, vibrant colors, high quality`;
 
     // 优先 Replicate image-to-image
