@@ -63,26 +63,28 @@ async function generateWithPollinations(prompt: string): Promise<string> {
   const encoded = encodeURIComponent(prompt);
   const seed = Math.floor(Math.random() * 1000000);
 
-  // ⚠️ 链总预算 < Vercel maxDuration(60s)，必须留 10s+ 给 HuggingFace 兜底
-  // 结构：前 4 模型 (openai/turbo/dalle3/flux) 高优 2 次重试 → 最坏 ~42s
-  //       链尾加 2 个低成本 last-resort: stable-diffusion + default (各 8s 单次不重试) → +16s = 最坏 58s（略超，但会被 overallDeadline 截断）
+  // ⚠️ 函数总 = 59s。Pollinations 链预算只给 25s（专注快速命中前 3 模型），
+  //  保证失败时函数还剩 >34s 一定能跑 HuggingFace 兜底（最坏约 30s 两个模型）。
+  //  6 个模型全保留，但 chain-deadline 截断 dalle3-flux-sd-default 时自动切到 HF。
   const MIN_KB: Record<string, number> = {
-    openai: 22,
-    turbo: 15,
-    dalle3: 28,
-    flux: 12,
-    "stable-diffusion": 18,
-    default: 10,
+    openai: 20,
+    turbo: 14,
+    dalle3: 25,
+    flux: 11,
+    "stable-diffusion": 16,
+    default: 9,
   };
   const attempts = [
-    { id: "openai",            qs: `model=openai`,            timeoutMs: 9500, retries: 2 },  // ① 用户最怀念「第一版」，1.5s 命中
-    { id: "turbo",             qs: `model=turbo`,             timeoutMs: 9500, retries: 2 },  // ② 成功率最高 快
-    { id: "dalle3",            qs: `model=dalle3`,            timeoutMs: 10000, retries: 2 }, // ③ A+ 顶级质量
-    { id: "flux",              qs: `model=flux`,              timeoutMs: 9000, retries: 2 },  // ④ 兜底稳
-    { id: "stable-diffusion",  qs: `model=stable-diffusion`,  timeoutMs: 8000, retries: 1 },  // ⑤ 最后 8s 最后一博
-    { id: "default",           qs: ``,                        timeoutMs: 6000, retries: 1 },  // ⑥ 默认兜底（不指定 model）
+    // 前 3 个：成功率高/速度快 → 预算充足
+    { id: "openai",            qs: `model=openai`,            timeoutMs: 9000, retries: 2 }, // ① 用户最怀念第一版：66% 1-2s
+    { id: "turbo",             qs: `model=turbo`,             timeoutMs: 8500, retries: 2 }, // ② 成功率最高：66% 1-3s
+    { id: "dalle3",            qs: `model=dalle3`,            timeoutMs: 8500, retries: 2 }, // ③ A+ 质量
+    // 后 3 个兜底：单试短超时 → 留给 HF 足够时间
+    { id: "flux",              qs: `model=flux`,              timeoutMs: 6000, retries: 1 },
+    { id: "stable-diffusion",  qs: `model=stable-diffusion`,  timeoutMs: 5500, retries: 1 },
+    { id: "default",           qs: ``,                        timeoutMs: 4500, retries: 1 },
   ];
-  const overallDeadline = Date.now() + 52000; // 链总 52s，函数总 55s 还剩 3s 给序列化
+  const overallDeadline = Date.now() + 25000;
 
   for (let i = 0; i < attempts.length; i++) {
     if (Date.now() >= overallDeadline) break;

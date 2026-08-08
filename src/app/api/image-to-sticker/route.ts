@@ -58,19 +58,19 @@ async function generateWithPollinations(prompt: string): Promise<string> {
   const encoded = encodeURIComponent(prompt);
   const seed = Math.floor(Math.random() * 1000000);
 
-  // ⚠️ 链总预算 50s（函数 60s - 10s 给 rembg/兜底）。最坏情况被 overallDeadline 截断。
+  // Image2Sticker 还有 rembg 消耗 3-8s → Pollinations 只给 22s，保证失败还能跑 HF
   const MIN_KB: Record<string, number> = {
-    openai: 22, turbo: 15, dalle3: 28, flux: 12, "stable-diffusion": 18, default: 10,
+    openai: 20, turbo: 14, dalle3: 25, flux: 11, "stable-diffusion": 16, default: 9,
   };
   const attempts = [
-    { id: "openai",            qs: `model=openai`,            timeoutMs: 9500, retries: 2 },
-    { id: "turbo",             qs: `model=turbo`,             timeoutMs: 9500, retries: 2 },
-    { id: "dalle3",            qs: `model=dalle3`,            timeoutMs: 10000, retries: 2 },
-    { id: "flux",              qs: `model=flux`,              timeoutMs: 9000, retries: 2 },
-    { id: "stable-diffusion",  qs: `model=stable-diffusion`,  timeoutMs: 8000, retries: 1 },
-    { id: "default",           qs: ``,                        timeoutMs: 6000, retries: 1 },
+    { id: "openai",            qs: `model=openai`,            timeoutMs: 9000, retries: 2 }, // ① 第一版高质量
+    { id: "turbo",             qs: `model=turbo`,             timeoutMs: 8500, retries: 2 }, // ② 成功率最高
+    { id: "dalle3",            qs: `model=dalle3`,            timeoutMs: 8500, retries: 2 }, // ③ A+ 质量
+    { id: "flux",              qs: `model=flux`,              timeoutMs: 5500, retries: 1 }, // ④ 兜底
+    { id: "stable-diffusion",  qs: `model=stable-diffusion`,  timeoutMs: 5000, retries: 1 }, // ⑤ 最后一博
+    { id: "default",           qs: ``,                        timeoutMs: 4000, retries: 1 }, // ⑥ 默认
   ];
-  const overallDeadline = Date.now() + 50000;
+  const overallDeadline = Date.now() + 22000;
 
   for (let i = 0; i < attempts.length; i++) {
     if (Date.now() >= overallDeadline) break;
