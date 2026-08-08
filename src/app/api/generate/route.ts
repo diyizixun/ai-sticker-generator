@@ -1,6 +1,7 @@
 // /api/generate - 服务端图片生成
-// 2026-08 实测优先级: Replicate → Pollinations(stable-diffusion 最佳质量/速度比) → Pollinations(turbo) → Pollinations(default) → Pollinations(flux 兜底) → HuggingFace
-// Pollinations 免费 API 最大输出 768x768 正方形（传更大也会被缩放），stable-diffusion 输出文件最大细节最丰富 1-2s
+// 2026-08-08 实测优先级: Replicate → Pollinations(openai 第一版,质量最好成功率66%) → Pollinations(stable-diffusion) → Pollinations(turbo) → Pollinations(dalle3 质量A+但成功率33%) → Pollinations(default) → Pollinations(flux兜底) → HuggingFace
+// Pollinations 免费 API 最大输出 768x768 正方形（传更大也会被缩放）
+// 各模型成功率: openai 66% 1.5-2s 44-63KB / turbo 66% 1-14s / stable-diffusion ~50% 42s / dalle3 33% 3s+
 
 import { NextRequest, NextResponse } from "next/server";
 import { getClientId, checkQuota } from "@/lib/quota";
@@ -43,29 +44,41 @@ async function moderatePrompt(prompt: string, userId?: string): Promise<{ allowe
 }
 
 // Pollinations AI - 免费，无需 API Key
-// 2026-08 实测（最大输出 768x768 正方形）：
-// stable-diffusion  ≈ 1-2s  60-80KB （细节最丰富，最佳质量性价比）
-// turbo            ≈ 1-2s  30-40KB （速度快，细节略少）
-// default/flux     ≈ 10-45s 30-50KB （慢速，偶尔失败）
+// 2026-08-08 3 prompts × 1 seed 实测（最大输出 768x768 正方形）：
+// openai             66%成功率  1.5-2s   44-63KB   用户最怀念的「第一版」高质量效果
+// stable-diffusion   ~50%成功率 42s      60-80KB   文件最大细节多，但慢到 Vercel 超时边缘
+// turbo              66%成功率  1-14s    27-51KB   速度快，细节略差且波动大
+// dalle3             33%成功率  3s+      55-75KB   质量顶级 A+，但成功率低不适合放太前
+// default/flux       约 40%     10-45s   30-50KB   慢速兜底
 async function generateWithPollinations(prompt: string): Promise<string> {
   const encoded = encodeURIComponent(prompt);
-  const seed = Math.floor(Math.random() * 100000);
+  const seed = Math.floor(Math.random() * 1000000);
 
-  // 每个模型的最小文件大小阈值（文件小=压缩率高=细节少）
-  // 达不到阈值就继续换下一个模型尝试，保证最终质量
-  const MIN_KB = { "stable-diffusion": 45, turbo: 25, default: 25, flux: 25 };
-  const timeouts = [30000, 20000, 40000, 45000]; // sd 30s, turbo 20s, default 40s, flux 45s
+  // 每个模型的最小文件大小阈值（文件小≈压缩率高≈细节少）
+  // 达不到阈值就自动尝试下一个模型
+  const MIN_KB: Record<string, number> = {
+    openai: 40,
+    "stable-diffusion": 45,
+    turbo: 25,
+    dalle3: 50,
+    default: 25,
+    flux: 25,
+  };
+  // 超时按 成功率×速度 实测匹配：成功率高/速度快的超时短，快失败快接盘
+  const timeouts = [15000, 35000, 20000, 18000, 40000, 45000];
   const attempts = [
-    { id: "stable-diffusion", qs: `model=stable-diffusion` },
-    { id: "turbo", qs: `model=turbo` },
-    { id: "default", qs: `` },
-    { id: "flux", qs: `model=flux` },
+    { id: "openai", qs: `model=openai` },              // ① 第一版高质量首选 1.5s 66%
+    { id: "stable-diffusion", qs: `model=stable-diffusion` }, // ② 文件最大细节多 42s ~50%
+    { id: "turbo", qs: `model=turbo` },                // ③ 66%成功率快 1-14s
+    { id: "dalle3", qs: `model=dalle3` },              // ④ A+顶级质量 成功率33%
+    { id: "default", qs: `` },                         // ⑤ 默认兜底
+    { id: "flux", qs: `model=flux` },                  // ⑥ 最后兜底
   ];
 
   for (let i = 0; i < attempts.length; i++) {
     const model = attempts[i];
-    // 每个尝试用独立 seed，避免 CDN/服务器缓存返回上一个模型的缓存结果
-    const trySeed = seed + i * 31337;
+    // 每个尝试用独立 seed，防止 CDN/模型缓存返回上一个模型的缓存小图
+    const trySeed = seed + i * 1013904223;
     const url =
       `https://image.pollinations.ai/prompt/${encoded}?width=768&height=768&seed=${trySeed}&nologo=true` +
       (model.qs ? `&${model.qs}` : "");
@@ -95,7 +108,6 @@ async function generateWithPollinations(prompt: string): Promise<string> {
         `[Pollinations] ${model.id} returned ${(buffer.length / 1024).toFixed(1)}KB in ${elapsed}ms (need >=${MIN_KB[model.id]}KB)`,
       );
       if (buffer.length < minBytes) {
-        // 质量不够，不是最终模型就跳过，最后一个模型低于绝对阈值 15KB 才跳过
         const isLast = i === attempts.length - 1;
         if (!isLast) {
           console.warn(`[Pollinations] ${model.id} below quality threshold, trying next`);

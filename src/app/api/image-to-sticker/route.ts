@@ -39,28 +39,40 @@ async function moderatePrompt(prompt: string, userId?: string): Promise<{ allowe
 }
 
 // Pollinations 文本生成（免费，无需 API Key）
-// 2026-08 实测（最大输出 768x768 正方形）：
-// stable-diffusion  ≈ 1-2s  60-80KB （细节最丰富，最佳质量性价比）
-// turbo            ≈ 1-2s  30-40KB （速度快，细节略少）
-// default/flux     ≈ 10-45s 30-50KB （慢速，偶尔失败）
+// 2026-08-08 实测（最大输出 768x768 正方形）：
+// openai             66%成功率  1.5-2s   44-63KB   用户最怀念的「第一版」高质量效果
+// stable-diffusion   ~50%成功率 42s      60-80KB   文件最大细节多，慢到 Vercel 超时边缘
+// turbo              66%成功率  1-14s    27-51KB   速度快，细节略差
+// dalle3             33%成功率  3s+      55-75KB   A+顶级质量，但成功率低
+// default/flux       约 40%     10-45s   30-50KB   慢速兜底
 async function generateWithPollinations(prompt: string): Promise<string> {
   const encoded = encodeURIComponent(prompt);
-  const seed = Math.floor(Math.random() * 100000);
+  const seed = Math.floor(Math.random() * 1000000);
 
-  // 每个模型的最小文件大小阈值（文件小=压缩率高=细节少）
-  const MIN_KB = { "stable-diffusion": 45, turbo: 25, default: 25, flux: 25 };
-  const timeouts = [30000, 20000, 40000, 45000]; // sd 30s, turbo 20s, default 40s, flux 45s
+  // 每个模型的最小文件大小阈值（文件小≈压缩率高≈细节少），达不到就尝试下一个
+  const MIN_KB: Record<string, number> = {
+    openai: 40,
+    "stable-diffusion": 45,
+    turbo: 25,
+    dalle3: 50,
+    default: 25,
+    flux: 25,
+  };
+  // 成功率高/速度快的超时短 → 快失败快接盘
+  const timeouts = [15000, 35000, 20000, 18000, 40000, 45000];
   const attempts = [
-    { id: "stable-diffusion", qs: `model=stable-diffusion` },
-    { id: "turbo", qs: `model=turbo` },
-    { id: "default", qs: `` },
-    { id: "flux", qs: `model=flux` },
+    { id: "openai", qs: `model=openai` },              // ① 第一版高质量首选
+    { id: "stable-diffusion", qs: `model=stable-diffusion` }, // ② 细节最多 42s
+    { id: "turbo", qs: `model=turbo` },                // ③ 速度快
+    { id: "dalle3", qs: `model=dalle3` },              // ④ A+质量 成功率33%
+    { id: "default", qs: `` },                         // ⑤ 默认兜底
+    { id: "flux", qs: `model=flux` },                  // ⑥ 最后兜底
   ];
 
   for (let i = 0; i < attempts.length; i++) {
     const model = attempts[i];
-    // 每个尝试用独立 seed，避免 CDN/服务器缓存返回上一个模型的缓存结果
-    const trySeed = seed + i * 31337;
+    // 每个尝试用独立 seed，防止 CDN/模型缓存返回上一个模型的缓存小图
+    const trySeed = seed + i * 1013904223;
     const url =
       `https://image.pollinations.ai/prompt/${encoded}?width=768&height=768&seed=${trySeed}&nologo=true` +
       (model.qs ? `&${model.qs}` : "");
