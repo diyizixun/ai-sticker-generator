@@ -54,37 +54,39 @@ async function generateWithPollinations(prompt: string): Promise<string> {
   const encoded = encodeURIComponent(prompt);
   const seed = Math.floor(Math.random() * 1000000);
 
-  // 每个模型的最小文件大小阈值（文件小≈压缩率高≈细节少）
-  // 达不到阈值就自动尝试下一个模型
+  // ⚠️ 总预算必须 < Vercel maxDuration (60s) ，避免函数硬杀返回 502
+  // 4 个高优模型 × 统一 12s 超时 → 最坏 48s → 留给前后端/网络/序列化 12s 缓冲
+  // 质量阈值：达不到就接下一个，最后一个模型接受任何 ≥12KB 的图
   const MIN_KB: Record<string, number> = {
-    openai: 40,
-    "stable-diffusion": 45,
-    turbo: 25,
-    dalle3: 50,
-    default: 25,
-    flux: 25,
+    openai: 35,
+    turbo: 22,
+    dalle3: 45,
+    flux: 20,
   };
-  // 超时按 成功率×速度 实测匹配：成功率高/速度快的超时短，快失败快接盘
-  const timeouts = [15000, 35000, 20000, 18000, 40000, 45000];
+  const perAttemptTimeoutMs = 12000;
   const attempts = [
-    { id: "openai", qs: `model=openai` },              // ① 第一版高质量首选 1.5s 66%
-    { id: "stable-diffusion", qs: `model=stable-diffusion` }, // ② 文件最大细节多 42s ~50%
-    { id: "turbo", qs: `model=turbo` },                // ③ 66%成功率快 1-14s
-    { id: "dalle3", qs: `model=dalle3` },              // ④ A+顶级质量 成功率33%
-    { id: "default", qs: `` },                         // ⑤ 默认兜底
-    { id: "flux", qs: `model=flux` },                  // ⑥ 最后兜底
+    { id: "openai", qs: `model=openai` },              // ① 用户最怀念的「第一版」高质量 66% 1.5-2s
+    { id: "turbo",  qs: `model=turbo` },               // ② 成功率最高（66%）速度最快 1-3s
+    { id: "dalle3", qs: `model=dalle3` },              // ③ A+ 顶级质量，成功直接命中 70KB+
+    { id: "flux",   qs: `model=flux` },                // ④ 最后兜底：flux 稳 任何能出图就行
   ];
+  const overallDeadline = Date.now() + 50000; // 50s 总预算 (提前 10s 打住避免 Vercel 60s 硬杀)
 
   for (let i = 0; i < attempts.length; i++) {
+    if (Date.now() >= overallDeadline) {
+      console.warn(`[Pollinations] Overall deadline reached, aborting remaining attempts`);
+      break;
+    }
     const model = attempts[i];
-    // 每个尝试用独立 seed，防止 CDN/模型缓存返回上一个模型的缓存小图
     const trySeed = seed + i * 1013904223;
     const url =
       `https://image.pollinations.ai/prompt/${encoded}?width=768&height=768&seed=${trySeed}&nologo=true` +
       (model.qs ? `&${model.qs}` : "");
     console.log(`[Pollinations] Attempt ${i + 1}/${attempts.length} (${model.id})`);
+    const remaining = overallDeadline - Date.now();
+    const thisTimeout = Math.min(perAttemptTimeoutMs, Math.max(3000, remaining));
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeouts[i]);
+    const timeout = setTimeout(() => controller.abort(), thisTimeout);
     try {
       const startTime = Date.now();
       const response = await fetch(url, {
@@ -107,13 +109,14 @@ async function generateWithPollinations(prompt: string): Promise<string> {
       console.log(
         `[Pollinations] ${model.id} returned ${(buffer.length / 1024).toFixed(1)}KB in ${elapsed}ms (need >=${MIN_KB[model.id]}KB)`,
       );
+      const isLast = i === attempts.length - 1;
       if (buffer.length < minBytes) {
-        const isLast = i === attempts.length - 1;
+        // 非最后模型：阈值不够跳过；最后模型：放宽到 12KB 绝对硬地板
         if (!isLast) {
           console.warn(`[Pollinations] ${model.id} below quality threshold, trying next`);
           continue;
-        } else if (buffer.length < 15000) {
-          console.warn(`[Pollinations] ${model.id} image too small: ${buffer.length}`);
+        } else if (buffer.length < 12000) {
+          console.warn(`[Pollinations] ${model.id} below hard floor (12KB), skipping`);
           continue;
         }
       }

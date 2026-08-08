@@ -49,36 +49,38 @@ async function generateWithPollinations(prompt: string): Promise<string> {
   const encoded = encodeURIComponent(prompt);
   const seed = Math.floor(Math.random() * 1000000);
 
-  // 每个模型的最小文件大小阈值（文件小≈压缩率高≈细节少），达不到就尝试下一个
+  // ⚠️ 总预算必须 < Vercel maxDuration (60s)，避免函数硬杀 502
+  // 4 个高优模型 × 统一 12s 超时 → 最坏 48s → 留 12s 缓冲
   const MIN_KB: Record<string, number> = {
-    openai: 40,
-    "stable-diffusion": 45,
-    turbo: 25,
-    dalle3: 50,
-    default: 25,
-    flux: 25,
+    openai: 35,
+    turbo: 22,
+    dalle3: 45,
+    flux: 20,
   };
-  // 成功率高/速度快的超时短 → 快失败快接盘
-  const timeouts = [15000, 35000, 20000, 18000, 40000, 45000];
+  const perAttemptTimeoutMs = 12000;
   const attempts = [
-    { id: "openai", qs: `model=openai` },              // ① 第一版高质量首选
-    { id: "stable-diffusion", qs: `model=stable-diffusion` }, // ② 细节最多 42s
-    { id: "turbo", qs: `model=turbo` },                // ③ 速度快
-    { id: "dalle3", qs: `model=dalle3` },              // ④ A+质量 成功率33%
-    { id: "default", qs: `` },                         // ⑤ 默认兜底
-    { id: "flux", qs: `model=flux` },                  // ⑥ 最后兜底
+    { id: "openai", qs: `model=openai` },              // ① 用户最怀念的「第一版」高质量 66% 1.5-2s
+    { id: "turbo",  qs: `model=turbo` },               // ② 成功率最高（66%）速度快
+    { id: "dalle3", qs: `model=dalle3` },              // ③ A+ 顶级质量，成功时 70KB+
+    { id: "flux",   qs: `model=flux` },                // ④ 最后兜底 flux（稳）
   ];
+  const overallDeadline = Date.now() + 50000; // 50s 总预算 (提前 10s 打住避免 Vercel 60s 硬杀)
 
   for (let i = 0; i < attempts.length; i++) {
+    if (Date.now() >= overallDeadline) {
+      console.warn(`[Image2Sticker] Overall deadline reached`);
+      break;
+    }
     const model = attempts[i];
-    // 每个尝试用独立 seed，防止 CDN/模型缓存返回上一个模型的缓存小图
     const trySeed = seed + i * 1013904223;
     const url =
       `https://image.pollinations.ai/prompt/${encoded}?width=768&height=768&seed=${trySeed}&nologo=true` +
       (model.qs ? `&${model.qs}` : "");
     console.log(`[Image2Sticker] Pollinations attempt ${i + 1} (${model.id})`);
+    const remaining = overallDeadline - Date.now();
+    const thisTimeout = Math.min(perAttemptTimeoutMs, Math.max(3000, remaining));
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeouts[i]);
+    const timeout = setTimeout(() => controller.abort(), thisTimeout);
     try {
       const startTime = Date.now();
       const response = await fetch(url, {
@@ -95,12 +97,12 @@ async function generateWithPollinations(prompt: string): Promise<string> {
       console.log(
         `[Image2Sticker] ${model.id} returned ${(buffer.length / 1024).toFixed(1)}KB in ${elapsed}ms (need >=${MIN_KB[model.id]}KB)`,
       );
+      const isLast = i === attempts.length - 1;
       if (buffer.length < minBytes) {
-        const isLast = i === attempts.length - 1;
         if (!isLast) {
-          console.warn(`[Image2Sticker] ${model.id} below quality threshold, trying next`);
+          console.warn(`[Image2Sticker] ${model.id} below threshold, trying next`);
           continue;
-        } else if (buffer.length < 15000) continue;
+        } else if (buffer.length < 12000) continue;
       }
       const ext = contentType.includes("png") ? "png" : "jpeg";
       console.log(
