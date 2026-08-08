@@ -54,23 +54,27 @@ function sniffImage(bytes: Buffer): { ok: true; ext: "jpeg" | "png" } | { ok: fa
   return { ok: false };
 }
 
-async function generateWithPollinations(prompt: string): Promise<string> {
+async function generateWithPollinations(prompt: string, deadline?: number): Promise<string> {
   const encoded = encodeURIComponent(prompt);
   const seed = Math.floor(Math.random() * 1000000);
 
-  // Image2Sticker 还有 rembg 消耗 3-8s → Pollinations 只给 22s，保证失败还能跑 HF
+  // Image2Sticker: 默认给 25s（留出 rembg 8s），如果外部传 deadline 按外部来
+  const overallDeadline = deadline || Date.now() + 25000;
+  const budgetMs = overallDeadline - Date.now();
+  const longBudget = budgetMs >= 35000; // 长预算 = 可能无兜底，多给重试
+  const R2 = longBudget ? 3 : 2;
+
   const MIN_KB: Record<string, number> = {
     openai: 20, turbo: 14, dalle3: 25, flux: 11, "stable-diffusion": 16, default: 9,
   };
   const attempts = [
-    { id: "openai",            qs: `model=openai`,            timeoutMs: 9000, retries: 2 }, // ① 第一版高质量
-    { id: "turbo",             qs: `model=turbo`,             timeoutMs: 8500, retries: 2 }, // ② 成功率最高
-    { id: "dalle3",            qs: `model=dalle3`,            timeoutMs: 8500, retries: 2 }, // ③ A+ 质量
-    { id: "flux",              qs: `model=flux`,              timeoutMs: 5500, retries: 1 }, // ④ 兜底
-    { id: "stable-diffusion",  qs: `model=stable-diffusion`,  timeoutMs: 5000, retries: 1 }, // ⑤ 最后一博
-    { id: "default",           qs: ``,                        timeoutMs: 4000, retries: 1 }, // ⑥ 默认
+    { id: "openai",            qs: `model=openai`,            timeoutMs: 9000, retries: R2 },
+    { id: "turbo",             qs: `model=turbo`,             timeoutMs: 8500, retries: R2 },
+    { id: "dalle3",            qs: `model=dalle3`,            timeoutMs: 8500, retries: R2 },
+    { id: "flux",              qs: `model=flux`,              timeoutMs: longBudget?8000:5500, retries: longBudget?2:1 },
+    { id: "stable-diffusion",  qs: `model=stable-diffusion`,  timeoutMs: longBudget?7500:5000, retries: longBudget?2:1 },
+    { id: "default",           qs: ``,                        timeoutMs: longBudget?6500:4000, retries: longBudget?2:1 },
   ];
-  const overallDeadline = Date.now() + 22000;
 
   for (let i = 0; i < attempts.length; i++) {
     if (Date.now() >= overallDeadline) break;

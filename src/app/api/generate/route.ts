@@ -59,13 +59,16 @@ function sniffImage(bytes: Buffer): { ok: true; ext: "jpeg" | "png" } | { ok: fa
   return { ok: false };
 }
 
-async function generateWithPollinations(prompt: string): Promise<string> {
+async function generateWithPollinations(prompt: string, deadline?: number): Promise<string> {
   const encoded = encodeURIComponent(prompt);
   const seed = Math.floor(Math.random() * 1000000);
 
-  // ⚠️ 函数总 = 59s。Pollinations 链预算只给 25s（专注快速命中前 3 模型），
-  //  保证失败时函数还剩 >34s 一定能跑 HuggingFace 兜底（最坏约 30s 两个模型）。
-  //  6 个模型全保留，但 chain-deadline 截断 dalle3-flux-sd-default 时自动切到 HF。
+  // 如果外部没传 deadline：默认 30s
+  const overallDeadline = deadline || Date.now() + 30000;
+  // 预算充裕（>35s）说明可能是"零兜底环境"——前 4 模型多给 1 次重试，不浪费函数时间
+  const budgetMs = overallDeadline - Date.now();
+  const longBudget = budgetMs >= 35000;
+
   const MIN_KB: Record<string, number> = {
     openai: 20,
     turbo: 14,
@@ -74,17 +77,15 @@ async function generateWithPollinations(prompt: string): Promise<string> {
     "stable-diffusion": 16,
     default: 9,
   };
+  const R2 = longBudget ? 3 : 2; // 长预算（54s）→ 前 4 模型重试 3 次，短预算 2 次
   const attempts = [
-    // 前 3 个：成功率高/速度快 → 预算充足
-    { id: "openai",            qs: `model=openai`,            timeoutMs: 9000, retries: 2 }, // ① 用户最怀念第一版：66% 1-2s
-    { id: "turbo",             qs: `model=turbo`,             timeoutMs: 8500, retries: 2 }, // ② 成功率最高：66% 1-3s
-    { id: "dalle3",            qs: `model=dalle3`,            timeoutMs: 8500, retries: 2 }, // ③ A+ 质量
-    // 后 3 个兜底：单试短超时 → 留给 HF 足够时间
-    { id: "flux",              qs: `model=flux`,              timeoutMs: 6000, retries: 1 },
-    { id: "stable-diffusion",  qs: `model=stable-diffusion`,  timeoutMs: 5500, retries: 1 },
-    { id: "default",           qs: ``,                        timeoutMs: 4500, retries: 1 },
+    { id: "openai",            qs: `model=openai`,            timeoutMs: 9000, retries: R2 },
+    { id: "turbo",             qs: `model=turbo`,             timeoutMs: 8500, retries: R2 },
+    { id: "dalle3",            qs: `model=dalle3`,            timeoutMs: 8500, retries: R2 },
+    { id: "flux",              qs: `model=flux`,              timeoutMs: longBudget ? 8000 : 6000, retries: longBudget ? 2 : 1 },
+    { id: "stable-diffusion",  qs: `model=stable-diffusion`,  timeoutMs: 7500, retries: longBudget ? 2 : 1 },
+    { id: "default",           qs: ``,                        timeoutMs: 6500, retries: longBudget ? 2 : 1 },
   ];
-  const overallDeadline = Date.now() + 25000;
 
   for (let i = 0; i < attempts.length; i++) {
     if (Date.now() >= overallDeadline) break;
@@ -285,10 +286,17 @@ export async function GET(req: NextRequest) {
   let source = "";
   const errors: string[] = [];
 
-  // 1. Pollinations — 绝大多数用户命中 1-3s；openai 是用户要求的第一版高质量
+  // 兜底 API 可用性检测 → 决定 Pollinations 吃多少预算
+  const hasAnyFallback =
+    !!process.env.HUGGINGFACE_API_TOKEN || !!process.env.OPENAI_API_KEY || !!process.env.REPLICATE_API_TOKEN;
+  // 有兜底：Pollinations 25s → 剩 34s 给 HF/其他；无兜底：Pollinations 直接 54s，函数最后 5s 留做序列化
+  const pollBudgetMs = hasAnyFallback ? 25000 : 54000;
+  const pollEndAt = Date.now() + pollBudgetMs;
+
+  // 1. Pollinations — openai 第一版用户首选
   {
     try {
-      result = await generateWithPollinations(fullPrompt);
+      result = await generateWithPollinations(fullPrompt, pollEndAt);
       source = "pollinations";
     } catch (e: any) {
       const m = "Pollinations: " + (e?.message || String(e)).slice(0, 120);
@@ -342,6 +350,8 @@ export async function GET(req: NextRequest) {
   if (!result) {
     const debug = {
       elapsed_ms: 59000 - Math.round(funcDeadline - Date.now()),
+      poll_budget_ms: pollBudgetMs,
+      has_any_fallback: hasAnyFallback,
       env: {
         hasHFToken: !!process.env.HUGGINGFACE_API_TOKEN,
         hasOpenAI: !!process.env.OPENAI_API_KEY,
