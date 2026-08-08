@@ -63,26 +63,31 @@ async function generateWithPollinations(prompt: string): Promise<string> {
   const encoded = encodeURIComponent(prompt);
   const seed = Math.floor(Math.random() * 1000000);
 
-  // ⚠️ 总预算 < Vercel maxDuration(60s)  →  48s 链预算 + 12s 给 HF/兜底
+  // ⚠️ 链总预算 < Vercel maxDuration(60s)，必须留 10s+ 给 HuggingFace 兜底
+  // 结构：前 4 模型 (openai/turbo/dalle3/flux) 高优 2 次重试 → 最坏 ~42s
+  //       链尾加 2 个低成本 last-resort: stable-diffusion + default (各 8s 单次不重试) → +16s = 最坏 58s（略超，但会被 overallDeadline 截断）
   const MIN_KB: Record<string, number> = {
     openai: 22,
     turbo: 15,
     dalle3: 28,
     flux: 12,
+    "stable-diffusion": 18,
+    default: 10,
   };
-  const perAttemptTimeoutMs = 11000;
   const attempts = [
-    { id: "openai", qs: `model=openai` },              // ① 用户最怀念的「第一版」高质量 66% 1.5-2s
-    { id: "turbo",  qs: `model=turbo` },               // ② 成功率最高（66%）速度最快 1-3s
-    { id: "dalle3", qs: `model=dalle3` },              // ③ A+ 顶级质量，成功时 70KB+
-    { id: "flux",   qs: `model=flux` },                // ④ 最后兜底（flux 稳）
+    { id: "openai",            qs: `model=openai`,            timeoutMs: 9500, retries: 2 },  // ① 用户最怀念「第一版」，1.5s 命中
+    { id: "turbo",             qs: `model=turbo`,             timeoutMs: 9500, retries: 2 },  // ② 成功率最高 快
+    { id: "dalle3",            qs: `model=dalle3`,            timeoutMs: 10000, retries: 2 }, // ③ A+ 顶级质量
+    { id: "flux",              qs: `model=flux`,              timeoutMs: 9000, retries: 2 },  // ④ 兜底稳
+    { id: "stable-diffusion",  qs: `model=stable-diffusion`,  timeoutMs: 8000, retries: 1 },  // ⑤ 最后 8s 最后一博
+    { id: "default",           qs: ``,                        timeoutMs: 6000, retries: 1 },  // ⑥ 默认兜底（不指定 model）
   ];
-  const overallDeadline = Date.now() + 48000;
+  const overallDeadline = Date.now() + 52000; // 链总 52s，函数总 55s 还剩 3s 给序列化
 
   for (let i = 0; i < attempts.length; i++) {
     if (Date.now() >= overallDeadline) break;
     const model = attempts[i];
-    for (let retry = 0; retry < 2; retry++) {
+    for (let retry = 0; retry < model.retries; retry++) {
       if (Date.now() >= overallDeadline) break;
       const trySeed = seed + i * 1013904223 + retry * 2654435761;
       const url =
@@ -90,15 +95,14 @@ async function generateWithPollinations(prompt: string): Promise<string> {
         (model.qs ? `&${model.qs}` : "");
       console.log(`[Pollinations] Attempt ${i + 1}/${attempts.length} (${model.id}) retry=${retry}`);
       const remaining = overallDeadline - Date.now();
-      const thisTimeout = Math.min(perAttemptTimeoutMs, Math.max(3000, remaining));
-      if (retry > 0) await new Promise((r) => setTimeout(r, 250));
+      const thisTimeout = Math.min(model.timeoutMs, Math.max(3000, remaining));
+      if (retry > 0) await new Promise((r) => setTimeout(r, 220));
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), thisTimeout);
       try {
         const startTime = Date.now();
         const response = await fetch(url, {
           signal: controller.signal,
-          // User-Agent / Accept / Referer 降低被 Vercel-CF / Pollinations 反爬当 bot 的概率
           headers: {
             Accept: "image/webp,image/avif,image/*;q=0.9,*/*;q=0.8",
             "Cache-Control": "no-cache, no-store, must-revalidate",
@@ -110,43 +114,25 @@ async function generateWithPollinations(prompt: string): Promise<string> {
         });
         const elapsed = Date.now() - startTime;
         clearTimeout(timeout);
-
         const status = response.status;
         const transientFail = status === 429 || status === 500 || status === 502 || status === 503 || status === 504;
-        if (transientFail && retry === 0) {
-          console.warn(`[Pollinations] ${model.id} HTTP ${status}, retry with new seed`);
-          continue;
-        }
-        if (!response.ok) {
-          console.warn(`[Pollinations] ${model.id} HTTP ${status} after ${elapsed}ms`);
-          break;
-        }
+        if (transientFail && retry === 0 && model.retries > 1) continue;
+        if (!response.ok) break;
         const buffer = Buffer.from(await response.arrayBuffer());
         const sniff = sniffImage(buffer);
-
-        // 2xx 但 body 不是真图片（Cloudflare challenge HTML / placeholder text） → 算失败重试
         if (!sniff.ok) {
-          const ct = response.headers.get("content-type") || "";
-          const head = buffer.slice(0, 48).toString("utf8").replace(/\s+/g, " ").slice(0, 120);
-          console.warn(
-            `[Pollinations] ${model.id} 2xx but NOT a real image! ct=[${ct}] bytes=${buffer.length} head=${head}`,
-          );
-          if (retry === 0) continue;
+          if (retry === 0 && model.retries > 1) continue;
           break;
         }
-
         const minBytes = MIN_KB[model.id] * 1024;
         console.log(
           `[Pollinations] ${model.id} ${sniff.ext} ${(buffer.length / 1024).toFixed(1)}KB in ${elapsed}ms (need >=${MIN_KB[model.id]}KB)`,
         );
         const isLast = i === attempts.length - 1;
         if (buffer.length < minBytes) {
-          if (retry === 0) {
-            console.warn(`[Pollinations] ${model.id} below threshold, retry with new seed`);
-            continue;
-          }
+          if (retry === 0 && model.retries > 1) continue;
           if (!isLast) break;
-          else if (buffer.length < 8000) break; // 最后模型 8KB 硬地板
+          else if (buffer.length < 6000) break; // 链尾最后硬地板 6KB（接受有图比没图强）
         }
         console.log(
           `[Pollinations] ✅ SUCCESS ${model.id} — ${(buffer.length / 1024).toFixed(0)}KB ${sniff.ext} · ${elapsed}ms`,
@@ -154,10 +140,7 @@ async function generateWithPollinations(prompt: string): Promise<string> {
         return `data:image/${sniff.ext};base64,${buffer.toString("base64")}`;
       } catch (e: any) {
         clearTimeout(timeout);
-        if (retry === 0 && (e.name === "AbortError" || /timeout|abort/i.test(e.message))) {
-          console.warn(`[Pollinations] ${model.id} timeout, retrying once with new seed`);
-          continue;
-        }
+        if (retry === 0 && model.retries > 1 && (e.name === "AbortError" || /timeout|abort/i.test(e.message))) continue;
         console.warn(`[Pollinations] ${model.id} error (retry=${retry}): ${e.message}`);
         break;
       }
@@ -280,15 +263,13 @@ export async function GET(req: NextRequest) {
   const stylePrompt = STYLE_PROMPTS[styleId] || "sticker design";
   const fullPrompt = `${stylePrompt}, ${userPrompt}, sticker, white outline, die-cut sticker shape, clean background, vibrant colors, high quality`;
 
-  // 依次尝试各生成接口
-  // ⚠️ 关键：先快后慢！66% 的请求能在 Pollinations openai 1.5-2s 内完成，
-  //  不要再先跑 Replicate（长轮询 30s+）把 Vercel 60s maxDuration 吃光。
-  //  Replicate / HF / OpenAI 仅在 Pollinations 失败且还有预算时才跑。
-  const funcDeadline = Date.now() + 55000; // 函数总预算 55s（Vercel 60s - 5s 缓冲）
+  // 依次尝试各生成接口（先快后慢，永远不要先跑长轮询！）
+  // Pollinations 链：最坏 52s  →  函数 59s 总预算 (Vercel 60s - 1s)
+  const funcDeadline = Date.now() + 59000;
   let result: string | null = null;
   let source = "";
 
-  // 1. Pollinations — 绝大多数用户命中，1-3s 返回（openai 是第一版高质量）
+  // 1. Pollinations — 绝大多数用户命中 1-3s；openai 是用户要求的第一版高质量
   {
     try {
       result = await generateWithPollinations(fullPrompt);
@@ -298,7 +279,17 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // 2. OpenAI（如果配置了） — 单次 HTTP 10s 内返回，质量稳定 A+
+  // 2. HuggingFace（免费推理兜底 FLUX.1-schnell / SDXL）— 最坏 30s
+  if (!result && Date.now() < funcDeadline - 32000) {
+    try {
+      result = await generateWithHuggingFace(fullPrompt);
+      source = "huggingface";
+    } catch (e) {
+      console.error("HuggingFace failed:", e);
+    }
+  }
+
+  // 3. OpenAI（如果配置了）— 单次 HTTP 10s
   if (!result && process.env.OPENAI_API_KEY && Date.now() < funcDeadline - 15000) {
     try {
       result = await generateWithOpenAI(fullPrompt);
@@ -308,18 +299,8 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // 3. HuggingFace（最后降级） — 最坏 30s (2 models)
-  if (!result && Date.now() < funcDeadline - 30000) {
-    try {
-      result = await generateWithHuggingFace(fullPrompt);
-      source = "huggingface";
-    } catch (e) {
-      console.error("HuggingFace failed:", e);
-    }
-  }
-
-  // 4. Replicate（如果配置了） — 长轮询，最坏 30s，只在剩余预算 >35s 时才去跑
-  if (!result && process.env.REPLICATE_API_TOKEN && Date.now() < funcDeadline - 35000) {
+  // 4. Replicate（如果配置了）— 长轮询最坏 30s，只在剩余 >38s 时启动
+  if (!result && process.env.REPLICATE_API_TOKEN && Date.now() < funcDeadline - 38000) {
     try {
       result = await generateWithReplicate(fullPrompt);
       source = "replicate";

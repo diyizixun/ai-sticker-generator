@@ -58,39 +58,35 @@ async function generateWithPollinations(prompt: string): Promise<string> {
   const encoded = encodeURIComponent(prompt);
   const seed = Math.floor(Math.random() * 1000000);
 
-  // ⚠️ 总预算 < Vercel maxDuration(60s) → 链内 48s，给 rembg/HF 留 12s
+  // ⚠️ 链总预算 50s（函数 60s - 10s 给 rembg/兜底）。最坏情况被 overallDeadline 截断。
   const MIN_KB: Record<string, number> = {
-    openai: 22,
-    turbo: 15,
-    dalle3: 28,
-    flux: 12,
+    openai: 22, turbo: 15, dalle3: 28, flux: 12, "stable-diffusion": 18, default: 10,
   };
-  const perAttemptTimeoutMs = 11000;
   const attempts = [
-    { id: "openai", qs: `model=openai` },              // ① 用户最怀念的「第一版」高质量
-    { id: "turbo",  qs: `model=turbo` },               // ② 成功率最高（66%）速度快
-    { id: "dalle3", qs: `model=dalle3` },              // ③ A+ 顶级质量
-    { id: "flux",   qs: `model=flux` },                // ④ 最后兜底（flux 稳）
+    { id: "openai",            qs: `model=openai`,            timeoutMs: 9500, retries: 2 },
+    { id: "turbo",             qs: `model=turbo`,             timeoutMs: 9500, retries: 2 },
+    { id: "dalle3",            qs: `model=dalle3`,            timeoutMs: 10000, retries: 2 },
+    { id: "flux",              qs: `model=flux`,              timeoutMs: 9000, retries: 2 },
+    { id: "stable-diffusion",  qs: `model=stable-diffusion`,  timeoutMs: 8000, retries: 1 },
+    { id: "default",           qs: ``,                        timeoutMs: 6000, retries: 1 },
   ];
-  const overallDeadline = Date.now() + 48000;
+  const overallDeadline = Date.now() + 50000;
 
   for (let i = 0; i < attempts.length; i++) {
     if (Date.now() >= overallDeadline) break;
     const model = attempts[i];
-    for (let retry = 0; retry < 2; retry++) {
+    for (let retry = 0; retry < model.retries; retry++) {
       if (Date.now() >= overallDeadline) break;
       const trySeed = seed + i * 1013904223 + retry * 2654435761;
       const url =
         `https://image.pollinations.ai/prompt/${encoded}?width=768&height=768&seed=${trySeed}&nologo=true` +
         (model.qs ? `&${model.qs}` : "");
-      console.log(`[Image2Sticker] Attempt ${i + 1} (${model.id}) retry=${retry}`);
       const remaining = overallDeadline - Date.now();
-      const thisTimeout = Math.min(perAttemptTimeoutMs, Math.max(3000, remaining));
-      if (retry > 0) await new Promise((r) => setTimeout(r, 250));
+      const thisTimeout = Math.min(model.timeoutMs, Math.max(3000, remaining));
+      if (retry > 0) await new Promise((r) => setTimeout(r, 220));
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), thisTimeout);
       try {
-        const startTime = Date.now();
         const response = await fetch(url, {
           signal: controller.signal,
           headers: {
@@ -102,35 +98,29 @@ async function generateWithPollinations(prompt: string): Promise<string> {
           },
           redirect: "follow",
         });
-        const elapsed = Date.now() - startTime;
         clearTimeout(timeout);
         const status = response.status;
         const transientFail = status === 429 || status === 500 || status === 502 || status === 503 || status === 504;
-        if (transientFail && retry === 0) continue;
+        if (transientFail && retry === 0 && model.retries > 1) continue;
         if (!response.ok) break;
         const buffer = Buffer.from(await response.arrayBuffer());
         const sniff = sniffImage(buffer);
         if (!sniff.ok) {
-          if (retry === 0) continue; // 2xx 但不是真图片（CF HTML/反爬）→ 重试
+          if (retry === 0 && model.retries > 1) continue;
           break;
         }
         const minBytes = MIN_KB[model.id] * 1024;
-        console.log(
-          `[Image2Sticker] ${model.id} ${sniff.ext} ${(buffer.length / 1024).toFixed(1)}KB ${elapsed}ms`,
-        );
         const isLast = i === attempts.length - 1;
         if (buffer.length < minBytes) {
-          if (retry === 0) continue;
+          if (retry === 0 && model.retries > 1) continue;
           if (!isLast) break;
-          else if (buffer.length < 8000) break;
+          else if (buffer.length < 6000) break;
         }
-        console.log(
-          `[Image2Sticker] ✅ SUCCESS ${model.id} — ${(buffer.length / 1024).toFixed(0)}KB ${sniff.ext} · ${elapsed}ms`,
-        );
+        console.log(`[Image2Sticker] ✅ ${model.id} ${(buffer.length/1024).toFixed(0)}KB`);
         return `data:image/${sniff.ext};base64,${buffer.toString("base64")}`;
       } catch (e: any) {
         clearTimeout(timeout);
-        if (retry === 0 && (e.name === "AbortError" || /timeout|abort/i.test(e.message))) continue;
+        if (retry === 0 && model.retries > 1 && (e.name === "AbortError" || /timeout|abort/i.test(e.message))) continue;
         break;
       }
     }
