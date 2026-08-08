@@ -93,14 +93,15 @@ async function generateWithPollinations(prompt: string, deadline?: number): Prom
   const R2 = longBudget ? 3 : 2;
 
   const MIN_KB: Record<string, number> = {
-    openai: 20, turbo: 14, dalle3: 25, flux: 11, "stable-diffusion": 16, default: 9,
+    openai: 20, turbo: 14, dalle3: 25, sana: 12, dreamshaper: 12, flux: 11, default: 9,
   };
   const attempts = [
     { id: "openai",            qs: `model=openai`,            timeoutMs: 9000, retries: R2 },
     { id: "turbo",             qs: `model=turbo`,             timeoutMs: 8500, retries: R2 },
     { id: "dalle3",            qs: `model=dalle3`,            timeoutMs: 8500, retries: R2 },
+    { id: "sana",              qs: `model=sana`,              timeoutMs: 8000, retries: longBudget?2:1 },
+    { id: "dreamshaper",       qs: `model=dreamshaper`,       timeoutMs: 8000, retries: longBudget?2:1 },
     { id: "flux",              qs: `model=flux`,              timeoutMs: longBudget?8000:5500, retries: longBudget?2:1 },
-    { id: "stable-diffusion",  qs: `model=stable-diffusion`,  timeoutMs: longBudget?7500:5000, retries: longBudget?2:1 },
     { id: "default",           qs: ``,                        timeoutMs: longBudget?6500:4000, retries: longBudget?2:1 },
   ];
 

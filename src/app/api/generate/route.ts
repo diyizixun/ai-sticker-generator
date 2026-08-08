@@ -157,8 +157,9 @@ async function generateWithPollinations(prompt: string, deadline?: number): Prom
     openai: 20,
     turbo: 14,
     dalle3: 25,
+    sana: 12,
+    dreamshaper: 12,
     flux: 11,
-    "stable-diffusion": 16,
     default: 9,
   };
   const R2 = longBudget ? 3 : 2; // 长预算（54s）→ 前 4 模型重试 3 次，短预算 2 次
@@ -166,9 +167,10 @@ async function generateWithPollinations(prompt: string, deadline?: number): Prom
     { id: "openai",            qs: `model=openai`,            timeoutMs: 9000, retries: R2 },
     { id: "turbo",             qs: `model=turbo`,             timeoutMs: 8500, retries: R2 },
     { id: "dalle3",            qs: `model=dalle3`,            timeoutMs: 8500, retries: R2 },
+    { id: "sana",              qs: `model=sana`,              timeoutMs: 8000, retries: longBudget ? 2 : 1 },
+    { id: "dreamshaper",       qs: `model=dreamshaper`,       timeoutMs: 8000, retries: longBudget ? 2 : 1 },
     { id: "flux",              qs: `model=flux`,              timeoutMs: longBudget ? 8000 : 6000, retries: longBudget ? 2 : 1 },
-    { id: "stable-diffusion",  qs: `model=stable-diffusion`,  timeoutMs: 7500, retries: longBudget ? 2 : 1 },
-    { id: "default",           qs: ``,                        timeoutMs: 6500, retries: longBudget ? 2 : 1 },
+    { id: "default",           qs: ``,                        timeoutMs: longBudget ? 6500 : 4500, retries: longBudget ? 2 : 1 },
   ];
 
   for (let i = 0; i < attempts.length; i++) {
@@ -236,67 +238,55 @@ async function generateWithPollinations(prompt: string, deadline?: number): Prom
   throw new Error("All Pollinations models failed");
 }
 
-// HuggingFace 免费推理 API（最后降级）
+// Pollinations 二次重试（替代已废弃的 HF 兜底）
+// HF Inference API 已弃用所有免费文生图模型（410 Gone），fal-ai provider 不支持 FLUX
+// 改为用 Pollinations 的不同模型 + 不同尺寸/seed 再试一轮
 async function generateWithHuggingFace(prompt: string): Promise<string> {
-  const hfToken = process.env.HUGGINGFACE_API_TOKEN;
-  // HF 旧 Inference API 已弃用所有免费文生图模型（410 Gone）
-  // 新 Inference Providers 系统通过 fal.ai/together 等 provider 路由
-  // 尝试多个 model + provider 组合
-  const attempts = [
-    { model: "black-forest-labs/FLUX.1-dev",  provider: "fal-ai",       steps: 28 },
-    { model: "black-forest-labs/FLUX.1-schnell", provider: "fal-ai",    steps: 4 },
-    { model: "black-forest-labs/FLUX.1-dev",  provider: "hf-inference", steps: 28 },
-    { model: "stabilityai/stable-diffusion-3.5-large", provider: "hf-inference", steps: 28 },
-    { model: "ByteDance/Hyper-SD",            provider: "hf-inference", steps: 8 },
-    { model: "black-forest-labs/FLUX.1-schnell", provider: "hf-inference", steps: 4 },
+  const encoded = encodeURIComponent(prompt);
+  const MIN_KB_FALLBACK = 8;
+  // 用与主链不同的模型顺序 + 不同尺寸，增加命中概率
+  const fallbackAttempts = [
+    { qs: `model=flux`,        width: 1024, height: 1024 },
+    { qs: `model=turbo`,       width: 512,  height: 512  },
+    { qs: `model=sana`,        width: 768,  height: 768  },
+    { qs: `model=dreamshaper`, width: 768,  height: 768  },
+    { qs: ``,                  width: 512,  height: 512  },
   ];
-  const hfErrors: string[] = [];
-  for (const att of attempts) {
+  const errors: string[] = [];
+  for (const att of fallbackAttempts) {
     try {
+      const seed = Math.floor(Math.random() * 1000000);
+      const url =
+        `https://image.pollinations.ai/prompt/${encoded}?width=${att.width}&height=${att.height}&seed=${seed}&nologo=true` +
+        (att.qs ? `&${att.qs}` : "");
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 18000);
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-        Accept: "image/png,image/jpeg,image/*;q=0.9,*/*;q=0.8",
-        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36",
-      };
-      if (hfToken) headers["Authorization"] = `Bearer ${hfToken}`;
-      headers["x-wait-for-model"] = "true";
-      const endpoint = `https://router.huggingface.co/${att.provider}/models/${att.model}/v1/text-to-image`;
-      const body = JSON.stringify({
-        inputs: prompt,
-        parameters: { num_inference_steps: att.steps, width: 768, height: 768 },
+      const timeout = setTimeout(() => controller.abort(), 12000);
+      const response = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36",
+          Accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+        },
       });
-      const response = await fetch(endpoint, { method: "POST", headers, body, signal: controller.signal });
       clearTimeout(timeout);
-      if (response.status === 503) {
-        hfErrors.push(`${att.model}@${att.provider}: 503 loading`);
-        await new Promise((r) => setTimeout(r, 2000));
-        const retryRes = await fetch(endpoint, { method: "POST", headers, body, signal: AbortSignal.timeout(20000) });
-        if (!retryRes.ok) { hfErrors.push(`${att.model}@${att.provider} retry: ${retryRes.status}`); continue; }
-        const buf = Buffer.from(await retryRes.arrayBuffer());
-        const sniff = (buf[0]===0xff&&buf[1]===0xd8)||(buf[0]===0x89&&buf[1]===0x50&&buf[2]===0x4e&&buf[3]===0x47);
-        if (!sniff || buf.length < 5000) { hfErrors.push(`${att.model}@${att.provider}: sniff fail ${buf.length}B`); continue; }
-        const ct = retryRes.headers.get("content-type") || "";
-        return `data:image/${ct.includes("png")?"png":"jpeg"};base64,${buf.toString("base64")}`;
-      }
       if (!response.ok) {
-        let detail = "";
-        try { detail = (await response.text()).slice(0, 100); } catch {}
-        hfErrors.push(`${att.model}@${att.provider}: ${response.status} ${detail}`);
+        errors.push(`${att.qs || "default"}: HTTP ${response.status}`);
         continue;
       }
-      const buf = Buffer.from(await response.arrayBuffer());
-      const sniff = (buf[0]===0xff&&buf[1]===0xd8)||(buf[0]===0x89&&buf[1]===0x50&&buf[2]===0x4e&&buf[3]===0x47);
-      if (!sniff || buf.length < 5000) { hfErrors.push(`${att.model}@${att.provider}: sniff fail ${buf.length}B`); continue; }
-      const ct = response.headers.get("content-type") || "";
-      return `data:image/${ct.includes("png")?"png":"jpeg"};base64,${buf.toString("base64")}`;
+      const buffer = Buffer.from(await response.arrayBuffer());
+      const sniff = (buffer[0]===0xff&&buffer[1]===0xd8)||(buffer[0]===0x89&&buffer[1]===0x50&&buffer[2]===0x4e&&buffer[3]===0x47);
+      if (!sniff || buffer.length < MIN_KB_FALLBACK * 1024) {
+        errors.push(`${att.qs || "default"}: sniff fail ${buffer.length}B`);
+        continue;
+      }
+      const ext = buffer[0] === 0xff ? "jpeg" : "png";
+      return `data:image/${ext};base64,${buffer.toString("base64")}`;
     } catch (e: any) {
-      hfErrors.push(`${att.model}@${att.provider}: ${e.name} ${e.message?.slice(0,60)}`);
+      errors.push(`${att.qs || "default"}: ${e.name} ${e.message?.slice(0,60)}`);
       continue;
     }
   }
-  throw new Error("All HF models failed [" + hfErrors.join(" | ") + "]");
+  throw new Error("Pollinations fallback2 all failed [" + errors.join(" | ") + "]");
 }
 
 // GET: 免费生成
