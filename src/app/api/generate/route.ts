@@ -1,7 +1,7 @@
 // /api/generate - 服务端图片生成
-// 2026-08-08 实测优先级: Replicate → Pollinations(openai 第一版,质量最好成功率66%) → Pollinations(stable-diffusion) → Pollinations(turbo) → Pollinations(dalle3 质量A+但成功率33%) → Pollinations(default) → Pollinations(flux兜底) → HuggingFace
-// Pollinations 免费 API 最大输出 768x768 正方形（传更大也会被缩放）
-// 各模型成功率: openai 66% 1.5-2s 44-63KB / turbo 66% 1-14s / stable-diffusion ~50% 42s / dalle3 33% 3s+
+// 模型优先级: Pollinations(openai 第一版) → turbo → dalle3 → flux → sd → default → HuggingFace(FLUX.1-schnell) → OpenAI → Replicate
+// 零兜底环境自动 54s 长预算 + 3 次重试；有 HF/OAI/Rep token 时 25s 短预算，留 34s 给兜底
+// 人物性别锁: musk/trump/biden 等名人 + man/woman/boy/girl 关键词 → 自动注入性别锁词
 
 import { NextRequest, NextResponse } from "next/server";
 import { getClientId, checkQuota } from "@/lib/quota";
