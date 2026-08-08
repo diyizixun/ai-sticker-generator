@@ -264,21 +264,15 @@ export async function GET(req: NextRequest) {
   const fullPrompt = `${stylePrompt}, ${userPrompt}, sticker, white outline, die-cut sticker shape, clean background, vibrant colors, high quality`;
 
   // 依次尝试各生成接口
+  // ⚠️ 关键：先快后慢！66% 的请求能在 Pollinations openai 1.5-2s 内完成，
+  //  不要再先跑 Replicate（长轮询 30s+）把 Vercel 60s maxDuration 吃光。
+  //  Replicate / HF / OpenAI 仅在 Pollinations 失败且还有预算时才跑。
+  const funcDeadline = Date.now() + 55000; // 函数总预算 55s（Vercel 60s - 5s 缓冲）
   let result: string | null = null;
   let source = "";
 
-  // 1. Replicate（如果配置了）
-  if (process.env.REPLICATE_API_TOKEN) {
-    try {
-      result = await generateWithReplicate(fullPrompt);
-      source = "replicate";
-    } catch (e) {
-      console.error("Replicate failed:", e);
-    }
-  }
-
-  // 2. Pollinations（turbo → flux → 默认，自动降级）
-  if (!result) {
+  // 1. Pollinations — 绝大多数用户命中，1-3s 返回（openai 是第一版高质量）
+  {
     try {
       result = await generateWithPollinations(fullPrompt);
       source = "pollinations";
@@ -287,8 +281,8 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // 3. OpenAI（如果配置了）
-  if (!result && process.env.OPENAI_API_KEY) {
+  // 2. OpenAI（如果配置了） — 单次 HTTP 10s 内返回，质量稳定 A+
+  if (!result && process.env.OPENAI_API_KEY && Date.now() < funcDeadline - 15000) {
     try {
       result = await generateWithOpenAI(fullPrompt);
       source = "openai";
@@ -297,13 +291,23 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // 4. HuggingFace（最后降级）
-  if (!result) {
+  // 3. HuggingFace（最后降级） — 最坏 30s (2 models)
+  if (!result && Date.now() < funcDeadline - 30000) {
     try {
       result = await generateWithHuggingFace(fullPrompt);
       source = "huggingface";
     } catch (e) {
       console.error("HuggingFace failed:", e);
+    }
+  }
+
+  // 4. Replicate（如果配置了） — 长轮询，最坏 30s，只在剩余预算 >35s 时才去跑
+  if (!result && process.env.REPLICATE_API_TOKEN && Date.now() < funcDeadline - 35000) {
+    try {
+      result = await generateWithReplicate(fullPrompt);
+      source = "replicate";
+    } catch (e) {
+      console.error("Replicate failed:", e);
     }
   }
 
