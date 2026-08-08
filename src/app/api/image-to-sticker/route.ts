@@ -49,70 +49,74 @@ async function generateWithPollinations(prompt: string): Promise<string> {
   const encoded = encodeURIComponent(prompt);
   const seed = Math.floor(Math.random() * 1000000);
 
-  // ⚠️ 总预算必须 < Vercel maxDuration (60s)，避免函数硬杀 502
-  // 4 个高优模型 × 统一 12s 超时 → 最坏 48s → 留 12s 缓冲
+  // ⚠️ 总预算 < Vercel maxDuration(60s) → 链内 48s，给 rembg/HF 留 12s
+  // 质量阈值降低 + HTTP 429/500/超时自动重试（换 seed），应对今天 Pollinations 服务端抖动
   const MIN_KB: Record<string, number> = {
-    openai: 35,
-    turbo: 22,
-    dalle3: 45,
-    flux: 20,
+    openai: 28,
+    turbo: 18,
+    dalle3: 35,
+    flux: 15,
   };
   const perAttemptTimeoutMs = 12000;
   const attempts = [
-    { id: "openai", qs: `model=openai` },              // ① 用户最怀念的「第一版」高质量 66% 1.5-2s
+    { id: "openai", qs: `model=openai` },              // ① 用户最怀念的「第一版」高质量
     { id: "turbo",  qs: `model=turbo` },               // ② 成功率最高（66%）速度快
-    { id: "dalle3", qs: `model=dalle3` },              // ③ A+ 顶级质量，成功时 70KB+
-    { id: "flux",   qs: `model=flux` },                // ④ 最后兜底 flux（稳）
+    { id: "dalle3", qs: `model=dalle3` },              // ③ A+ 顶级质量
+    { id: "flux",   qs: `model=flux` },                // ④ 最后兜底（flux 稳）
   ];
-  const overallDeadline = Date.now() + 50000; // 50s 总预算 (提前 10s 打住避免 Vercel 60s 硬杀)
+  const overallDeadline = Date.now() + 48000;
 
   for (let i = 0; i < attempts.length; i++) {
-    if (Date.now() >= overallDeadline) {
-      console.warn(`[Image2Sticker] Overall deadline reached`);
-      break;
-    }
+    if (Date.now() >= overallDeadline) break;
     const model = attempts[i];
-    const trySeed = seed + i * 1013904223;
-    const url =
-      `https://image.pollinations.ai/prompt/${encoded}?width=768&height=768&seed=${trySeed}&nologo=true` +
-      (model.qs ? `&${model.qs}` : "");
-    console.log(`[Image2Sticker] Pollinations attempt ${i + 1} (${model.id})`);
-    const remaining = overallDeadline - Date.now();
-    const thisTimeout = Math.min(perAttemptTimeoutMs, Math.max(3000, remaining));
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), thisTimeout);
-    try {
-      const startTime = Date.now();
-      const response = await fetch(url, {
-        signal: controller.signal,
-        headers: { Accept: "image/*", "Cache-Control": "no-cache" },
-      });
-      const elapsed = Date.now() - startTime;
-      clearTimeout(timeout);
-      const contentType = response.headers.get("content-type") || "";
-      if (!response.ok) continue;
-      if (!contentType.includes("image")) continue;
-      const buffer = Buffer.from(await response.arrayBuffer());
-      const minBytes = MIN_KB[model.id] * 1024;
-      console.log(
-        `[Image2Sticker] ${model.id} returned ${(buffer.length / 1024).toFixed(1)}KB in ${elapsed}ms (need >=${MIN_KB[model.id]}KB)`,
-      );
-      const isLast = i === attempts.length - 1;
-      if (buffer.length < minBytes) {
-        if (!isLast) {
-          console.warn(`[Image2Sticker] ${model.id} below threshold, trying next`);
-          continue;
-        } else if (buffer.length < 12000) continue;
+    // 每个模型 2 次尝试：HTTP 429/500/超时/低于阈值 → 换 seed +150ms 再试一次
+    for (let retry = 0; retry < 2; retry++) {
+      if (Date.now() >= overallDeadline) break;
+      const trySeed = seed + i * 1013904223 + retry * 2654435761;
+      const url =
+        `https://image.pollinations.ai/prompt/${encoded}?width=768&height=768&seed=${trySeed}&nologo=true` +
+        (model.qs ? `&${model.qs}` : "");
+      console.log(`[Image2Sticker] Attempt ${i + 1} (${model.id}) retry=${retry}`);
+      const remaining = overallDeadline - Date.now();
+      const thisTimeout = Math.min(perAttemptTimeoutMs, Math.max(3000, remaining));
+      if (retry > 0) await new Promise((r) => setTimeout(r, 150));
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), thisTimeout);
+      try {
+        const startTime = Date.now();
+        const response = await fetch(url, {
+          signal: controller.signal,
+          headers: { Accept: "image/*", "Cache-Control": "no-cache" },
+        });
+        const elapsed = Date.now() - startTime;
+        clearTimeout(timeout);
+        if ((response.status === 429 || response.status === 500 || response.status === 502) && retry === 0) {
+          continue; // 瞬时限流 → 重试
+        }
+        if (!response.ok) break;
+        const contentType = response.headers.get("content-type") || "";
+        if (!contentType.includes("image")) break;
+        const buffer = Buffer.from(await response.arrayBuffer());
+        const minBytes = MIN_KB[model.id] * 1024;
+        console.log(
+          `[Image2Sticker] ${model.id} returned ${(buffer.length / 1024).toFixed(1)}KB in ${elapsed}ms (need >=${MIN_KB[model.id]}KB)`,
+        );
+        const isLast = i === attempts.length - 1;
+        if (buffer.length < minBytes) {
+          if (retry === 0) continue; // 换 seed 再试一次
+          if (!isLast) break;
+          else if (buffer.length < 10000) break;
+        }
+        const ext = contentType.includes("png") ? "png" : "jpeg";
+        console.log(
+          `[Image2Sticker] ✅ SUCCESS with ${model.id} — ${(buffer.length / 1024).toFixed(0)}KB · ${elapsed}ms`,
+        );
+        return `data:image/${ext};base64,${buffer.toString("base64")}`;
+      } catch (e: any) {
+        clearTimeout(timeout);
+        if (retry === 0 && (e.name === "AbortError" || /timeout|abort/i.test(e.message))) continue;
+        break;
       }
-      const ext = contentType.includes("png") ? "png" : "jpeg";
-      console.log(
-        `[Image2Sticker] ✅ SUCCESS with ${model.id} — ${(buffer.length / 1024).toFixed(0)}KB · ${elapsed}ms`,
-      );
-      return `data:image/${ext};base64,${buffer.toString("base64")}`;
-    } catch (e: any) {
-      clearTimeout(timeout);
-      console.warn(`[Image2Sticker] ${model.id} error: ${e.message}`);
-      continue;
     }
   }
   throw new Error("All Pollinations models failed");
