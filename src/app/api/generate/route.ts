@@ -239,71 +239,61 @@ async function generateWithPollinations(prompt: string, deadline?: number): Prom
 // HuggingFace 免费推理 API（最后降级）
 async function generateWithHuggingFace(prompt: string): Promise<string> {
   const hfToken = process.env.HUGGINGFACE_API_TOKEN;
-  // FLUX.1-schnell 已于 2025 年被 HF 弃用（410 Gone），换用当前可用模型
-  const models = [
-    { id: "stabilityai/stable-diffusion-xl-base-1.0", steps: 20, endpoint: "router" },
-    { id: "stabilityai/stable-diffusion-3.5-large",   steps: 28, endpoint: "router" },
-    { id: "ByteDance/Hyper-SD",                        steps: 8,  endpoint: "router" },
-    { id: "stabilityai/stable-diffusion-xl-base-1.0", steps: 20, endpoint: "legacy" },
+  // HF 旧 Inference API 已弃用所有免费文生图模型（410 Gone）
+  // 新 Inference Providers 系统通过 fal.ai/together 等 provider 路由
+  // 尝试多个 model + provider 组合
+  const attempts = [
+    { model: "black-forest-labs/FLUX.1-dev",  provider: "fal-ai",       steps: 28 },
+    { model: "black-forest-labs/FLUX.1-schnell", provider: "fal-ai",    steps: 4 },
+    { model: "black-forest-labs/FLUX.1-dev",  provider: "hf-inference", steps: 28 },
+    { model: "stabilityai/stable-diffusion-3.5-large", provider: "hf-inference", steps: 28 },
+    { model: "ByteDance/Hyper-SD",            provider: "hf-inference", steps: 8 },
+    { model: "black-forest-labs/FLUX.1-schnell", provider: "hf-inference", steps: 4 },
   ];
   const hfErrors: string[] = [];
-  for (const model of models) {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 16000);
-        const headers: Record<string, string> = {
-          "Content-Type": "application/json",
-          Accept: "image/png,image/jpeg,image/*;q=0.9,*/*;q=0.8",
-          "Cache-Control": "no-cache, no-store",
-          "User-Agent":
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
-        };
-        if (hfToken) headers["Authorization"] = `Bearer ${hfToken}`;
-        headers["x-wait-for-model"] = "true";
-        const endpoint = model.endpoint === "router"
-          ? `https://router.huggingface.co/hf-inference/models/${model.id}/v1/text-to-image`
-          : `https://api-inference.huggingface.co/models/${model.id}`;
-        const body = JSON.stringify({
-          inputs: prompt,
-          parameters: { num_inference_steps: model.steps, width: 768, height: 768 },
-        });
-        const response = await fetch(endpoint, { method: "POST", headers, body, signal: controller.signal });
-        clearTimeout(timeout);
-        if (response.status === 503) {
-          hfErrors.push(`${model.id}#${attempt}: 503 model loading`);
-          if (attempt === 0) { await new Promise((r) => setTimeout(r, 1500)); continue; }
-          await new Promise((r) => setTimeout(r, 2500));
-          const retryRes = await fetch(endpoint, { method: "POST", headers, body, signal: AbortSignal.timeout(20000) });
-          if (!retryRes.ok) { hfErrors.push(`${model.id}#${attempt} retry: ${retryRes.status}`); continue; }
-          const ct2 = retryRes.headers.get("content-type") || "";
-          if (!ct2.includes("image")) { hfErrors.push(`${model.id}#${attempt} retry: bad CT ${ct2}`); continue; }
-          const buf2 = Buffer.from(await retryRes.arrayBuffer());
-          const sniff2 = (buf2[0]===0xff&&buf2[1]===0xd8)||(buf2[0]===0x89&&buf2[1]===0x50&&buf2[2]===0x4e&&buf2[3]===0x47);
-          if (!sniff2 || buf2.length < 5000) { hfErrors.push(`${model.id}#${attempt} retry: sniff fail ${buf2.length}B`); continue; }
-          const ext2 = ct2.includes("png") ? "png" : "jpeg";
-          return `data:image/${ext2};base64,${buf2.toString("base64")}`;
-        }
-        if (!response.ok) {
-          let detail = "";
-          try { detail = (await response.text()).slice(0, 100); } catch {}
-          hfErrors.push(`${model.id}#${attempt}: ${response.status} ${detail}`);
-          if (attempt === 0 && (response.status === 429 || response.status >= 500)) {
-            await new Promise((r) => setTimeout(r, 500)); continue;
-          }
-          continue;
-        }
-        const contentType = response.headers.get("content-type") || "";
-        const buffer = Buffer.from(await response.arrayBuffer());
-        const sniff = (buffer[0]===0xff&&buffer[1]===0xd8)||(buffer[0]===0x89&&buffer[1]===0x50&&buffer[2]===0x4e&&buffer[3]===0x47);
-        if (!sniff || buffer.length < 5000) { hfErrors.push(`${model.id}#${attempt}: sniff fail ${buffer.length}B CT=${contentType}`); continue; }
-        const ext = contentType.includes("png") ? "png" : "jpeg";
-        return `data:image/${ext};base64,${buffer.toString("base64")}`;
-      } catch (e: any) {
-        hfErrors.push(`${model.id}#${attempt}: ${e.name} ${e.message?.slice(0,80)}`);
-        if (attempt === 0) { await new Promise((r) => setTimeout(r, 400)); continue; }
+  for (const att of attempts) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 18000);
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        Accept: "image/png,image/jpeg,image/*;q=0.9,*/*;q=0.8",
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36",
+      };
+      if (hfToken) headers["Authorization"] = `Bearer ${hfToken}`;
+      headers["x-wait-for-model"] = "true";
+      const endpoint = `https://router.huggingface.co/${att.provider}/models/${att.model}/v1/text-to-image`;
+      const body = JSON.stringify({
+        inputs: prompt,
+        parameters: { num_inference_steps: att.steps, width: 768, height: 768 },
+      });
+      const response = await fetch(endpoint, { method: "POST", headers, body, signal: controller.signal });
+      clearTimeout(timeout);
+      if (response.status === 503) {
+        hfErrors.push(`${att.model}@${att.provider}: 503 loading`);
+        await new Promise((r) => setTimeout(r, 2000));
+        const retryRes = await fetch(endpoint, { method: "POST", headers, body, signal: AbortSignal.timeout(20000) });
+        if (!retryRes.ok) { hfErrors.push(`${att.model}@${att.provider} retry: ${retryRes.status}`); continue; }
+        const buf = Buffer.from(await retryRes.arrayBuffer());
+        const sniff = (buf[0]===0xff&&buf[1]===0xd8)||(buf[0]===0x89&&buf[1]===0x50&&buf[2]===0x4e&&buf[3]===0x47);
+        if (!sniff || buf.length < 5000) { hfErrors.push(`${att.model}@${att.provider}: sniff fail ${buf.length}B`); continue; }
+        const ct = retryRes.headers.get("content-type") || "";
+        return `data:image/${ct.includes("png")?"png":"jpeg"};base64,${buf.toString("base64")}`;
+      }
+      if (!response.ok) {
+        let detail = "";
+        try { detail = (await response.text()).slice(0, 100); } catch {}
+        hfErrors.push(`${att.model}@${att.provider}: ${response.status} ${detail}`);
         continue;
       }
+      const buf = Buffer.from(await response.arrayBuffer());
+      const sniff = (buf[0]===0xff&&buf[1]===0xd8)||(buf[0]===0x89&&buf[1]===0x50&&buf[2]===0x4e&&buf[3]===0x47);
+      if (!sniff || buf.length < 5000) { hfErrors.push(`${att.model}@${att.provider}: sniff fail ${buf.length}B`); continue; }
+      const ct = response.headers.get("content-type") || "";
+      return `data:image/${ct.includes("png")?"png":"jpeg"};base64,${buf.toString("base64")}`;
+    } catch (e: any) {
+      hfErrors.push(`${att.model}@${att.provider}: ${e.name} ${e.message?.slice(0,60)}`);
+      continue;
     }
   }
   throw new Error("All HF models failed [" + hfErrors.join(" | ") + "]");
