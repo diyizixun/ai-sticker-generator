@@ -190,20 +190,31 @@ async function generateWithPollinations(prompt: string, deadline?: number): Prom
     turbo: 20,
     dalle3: 30,
     sana: 20,
+    seedream: 20,
     dreamshaper: 20,
     flux: 18,
     default: 15,
   };
-  const R2 = longBudget ? 3 : 2; // 长预算（54s）→ 前 4 模型重试 3 次，短预算 2 次
+  const R2 = longBudget ? 3 : 2;
+  // enhance=true + 1024² 对所有模型启用
+  // Pollinations enhance 参数会对 prompt 自动做语义补全 → 显著提升人物一致性和质量
+  const ENH_QS = `&enhance=true`;
+  const SIZE_A = `width=1024&height=1024`;
+  const SIZE_B = `width=768&height=768`;
   const attempts = [
-    { id: "openai",            qs: `model=openai`,            timeoutMs: 9000, retries: R2 },
-    { id: "turbo",             qs: `model=turbo`,             timeoutMs: 8500, retries: R2 },
-    { id: "dalle3",            qs: `model=dalle3`,            timeoutMs: 8500, retries: R2 },
-    { id: "sana",              qs: `model=sana`,              timeoutMs: 8000, retries: longBudget ? 2 : 1 },
-    { id: "dreamshaper",       qs: `model=dreamshaper`,       timeoutMs: 8000, retries: longBudget ? 2 : 1 },
-    { id: "flux",              qs: `model=flux`,              timeoutMs: longBudget ? 8000 : 6000, retries: longBudget ? 2 : 1 },
-    { id: "default",           qs: ``,                        timeoutMs: longBudget ? 6500 : 4500, retries: longBudget ? 2 : 1 },
+    { id: "openai",            qs: `model=openai`,            extra: ENH_QS, size: SIZE_A, timeoutMs: 9000, retries: R2 },
+    { id: "turbo",             qs: `model=turbo`,             extra: ENH_QS, size: SIZE_A, timeoutMs: 8500, retries: R2 },
+    { id: "dalle3",            qs: `model=dalle3`,            extra: ENH_QS, size: SIZE_A, timeoutMs: 8500, retries: R2 },
+    { id: "sana",              qs: `model=sana`,              extra: ENH_QS, size: SIZE_B, timeoutMs: 8000, retries: longBudget ? 2 : 1 },
+    { id: "seedream",          qs: `model=seedream`,          extra: ENH_QS, size: SIZE_A, timeoutMs: 8000, retries: longBudget ? 2 : 1 },
+    { id: "dreamshaper",       qs: `model=dreamshaper`,       extra: ENH_QS, size: SIZE_B, timeoutMs: 8000, retries: longBudget ? 2 : 1 },
+    { id: "flux",              qs: `model=flux`,              extra: ENH_QS, size: SIZE_A, timeoutMs: longBudget ? 8000 : 6000, retries: longBudget ? 2 : 1 },
+    { id: "default",           qs: ``,                        extra: ENH_QS, size: SIZE_B, timeoutMs: longBudget ? 6500 : 4500, retries: longBudget ? 2 : 1 },
   ];
+
+  // 双 endpoint 轮询（image.pollinations.ai 429 时换到 gen.pollinations.ai）
+  const hosts = ["https://image.pollinations.ai", "https://gen.pollinations.ai"];
+  let hostIdx = 0;
 
   for (let i = 0; i < attempts.length; i++) {
     if (Date.now() >= overallDeadline) break;
@@ -211,10 +222,12 @@ async function generateWithPollinations(prompt: string, deadline?: number): Prom
     for (let retry = 0; retry < model.retries; retry++) {
       if (Date.now() >= overallDeadline) break;
       const trySeed = seed + i * 1013904223 + retry * 2654435761;
+      // 每次重试换一个 host，429 命中同一个 IP 限流会分散
+      const host = hosts[(hostIdx++) % hosts.length];
       const url =
-        `https://image.pollinations.ai/prompt/${encoded}?width=768&height=768&seed=${trySeed}&nologo=true` +
-        (model.qs ? `&${model.qs}` : "");
-      console.log(`[Pollinations] Attempt ${i + 1}/${attempts.length} (${model.id}) retry=${retry}`);
+        `${host}/prompt/${encoded}?${model.size}&seed=${trySeed}&nologo=true` +
+        (model.qs ? `&${model.qs}` : "") + (model.extra || "");
+      console.log(`[Pollinations] #${i+1} ${model.id} retry=${retry} ${host.replace("https://","")}`);
       const remaining = overallDeadline - Date.now();
       const thisTimeout = Math.min(model.timeoutMs, Math.max(3000, remaining));
       if (retry > 0) await new Promise((r) => setTimeout(r, 220));
@@ -276,20 +289,26 @@ async function generateWithPollinations(prompt: string, deadline?: number): Prom
 async function generateWithHuggingFace(prompt: string): Promise<string> {
   const encoded = encodeURIComponent(prompt);
   const MIN_KB_FALLBACK = 8;
-  // 用与主链不同的模型顺序 + 不同尺寸，增加命中概率
+  // 主链不同模型顺序 + 不同尺寸 + 双 host 轮换，再试一轮
+  const fbHosts = ["https://gen.pollinations.ai", "https://image.pollinations.ai"];
+  let fbH = 0;
   const fallbackAttempts = [
-    { qs: `model=flux`,        width: 1024, height: 1024 },
-    { qs: `model=turbo`,       width: 512,  height: 512  },
-    { qs: `model=sana`,        width: 768,  height: 768  },
-    { qs: `model=dreamshaper`, width: 768,  height: 768  },
-    { qs: ``,                  width: 512,  height: 512  },
+    { qs: `model=seedream`,      width: 1024, height: 1024 }, // 新模型首试
+    { qs: `model=flux`,          width: 1024, height: 1024 },
+    { qs: `model=sana`,          width: 1024, height: 1024 },
+    { qs: `model=dreamshaper`,   width: 768,  height: 768  },
+    { qs: `model=dalle3`,        width: 768,  height: 768  },
+    { qs: `model=turbo`,         width: 512,  height: 512  },
+    { qs: `model=openai`,        width: 512,  height: 512  },
+    { qs: ``,                    width: 768,  height: 768  },
   ];
   const errors: string[] = [];
   for (const att of fallbackAttempts) {
     try {
       const seed = Math.floor(Math.random() * 1000000);
+      const host = fbHosts[(fbH++) % fbHosts.length];
       const url =
-        `https://image.pollinations.ai/prompt/${encoded}?width=${att.width}&height=${att.height}&seed=${seed}&nologo=true` +
+        `${host}/prompt/${encoded}?width=${att.width}&height=${att.height}&seed=${seed}&nologo=true&enhance=true` +
         (att.qs ? `&${att.qs}` : "");
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 12000);
