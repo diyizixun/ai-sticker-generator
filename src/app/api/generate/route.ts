@@ -412,10 +412,14 @@ export async function GET(req: NextRequest) {
   const errors: string[] = [];
 
   // 兜底 API 可用性检测 → 决定 Pollinations 吃多少预算
+  const hasBing = !!process.env.BING_COOKIE;
+  const hasOpenAI = !!process.env.OPENAI_API_KEY;
+  const hasRep = !!process.env.REPLICATE_API_TOKEN;
+  const hasGemini = !!process.env.GOOGLE_API_KEY || !!process.env.GEMINI_API_KEY;
   const hasAnyFallback =
-    !!process.env.HUGGINGFACE_API_TOKEN || !!process.env.OPENAI_API_KEY || !!process.env.REPLICATE_API_TOKEN;
-  // 有兜底：Pollinations 25s → 剩 34s 给 HF/其他；无兜底：Pollinations 直接 54s，函数最后 5s 留做序列化
-  const pollBudgetMs = hasAnyFallback ? 25000 : 54000;
+    !!process.env.HUGGINGFACE_API_TOKEN || hasOpenAI || hasRep || hasBing || hasGemini;
+  // 有兜底：Pollinations 28s → 剩 31s 给后面；无兜底：Pollinations 54s
+  const pollBudgetMs = hasAnyFallback ? 28000 : 54000;
   const pollEndAt = Date.now() + pollBudgetMs;
 
   // 1. Pollinations — openai 第一版用户首选
@@ -430,36 +434,64 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // 2. HuggingFace（免费推理兜底 FLUX.1-schnell / SDXL）— 最坏 30s
-  if (!result && Date.now() < funcDeadline - 32000) {
+  // 2. Pollinations fallback2（不同尺寸+seedream+双host）
+  if (!result && Date.now() < funcDeadline - 22000) {
     try {
       result = await generateWithHuggingFace(fullPrompt);
-      source = "huggingface";
+      source = "fallback2";
     } catch (e: any) {
-      const m = "HuggingFace: " + (e?.message || String(e)).slice(0, 120);
+      const m = "Fallback2: " + (e?.message || String(e)).slice(0, 120);
       errors.push(m);
       console.error(m);
     }
   } else if (!result) {
-    errors.push("HuggingFace: skipped — only " + Math.round(funcDeadline - Date.now()) + "ms remaining (need 32s)");
+    errors.push("Fallback2: skipped — " + Math.round(funcDeadline - Date.now()) + "ms left (need 22s)");
   }
 
-  // 3. OpenAI（如果配置了）— 单次 HTTP 10s
-  if (!result && process.env.OPENAI_API_KEY && Date.now() < funcDeadline - 15000) {
+  // 3. Bing Image Creator (DALL-E 3) — 质量最高，完全免费，需 _U cookie
+  if (!result && hasBing && Date.now() < funcDeadline - 22000) {
+    try {
+      result = await generateWithBing(fullPrompt);
+      source = "bing-dalle3";
+    } catch (e: any) {
+      const m = "Bing(DALL-E3): " + (e?.message || String(e)).slice(0, 160);
+      errors.push(m);
+      console.error(m);
+    }
+  } else if (!result && hasBing) {
+    errors.push("Bing(DALL-E3): skipped — " + Math.round(funcDeadline - Date.now()) + "ms left (need 22s)");
+  }
+
+  // 4. OpenAI DALL-E 3
+  if (!result && hasOpenAI && Date.now() < funcDeadline - 15000) {
     try {
       result = await generateWithOpenAI(fullPrompt);
-      source = "openai";
+      source = "openai-dalle3";
     } catch (e: any) {
       const m = "OpenAI: " + (e?.message || String(e)).slice(0, 120);
       errors.push(m);
       console.error(m);
     }
-  } else if (!result && process.env.OPENAI_API_KEY) {
+  } else if (!result && hasOpenAI) {
     errors.push("OpenAI: skipped — " + Math.round(funcDeadline - Date.now()) + "ms left (need 15s)");
   }
 
-  // 4. Replicate（如果配置了）— 长轮询最坏 30s，只在剩余 >38s 时启动
-  if (!result && process.env.REPLICATE_API_TOKEN && Date.now() < funcDeadline - 38000) {
+  // 5. Google Gemini Nano Banana 2 / Imagen 3
+  if (!result && hasGemini && Date.now() < funcDeadline - 20000) {
+    try {
+      result = await generateWithGemini(fullPrompt);
+      source = "gemini";
+    } catch (e: any) {
+      const m = "Gemini: " + (e?.message || String(e)).slice(0, 160);
+      errors.push(m);
+      console.error(m);
+    }
+  } else if (!result && hasGemini) {
+    errors.push("Gemini: skipped — " + Math.round(funcDeadline - Date.now()) + "ms left (need 20s)");
+  }
+
+  // 6. Replicate（最后）— 长轮询最坏 30s，只在剩余 >38s 时启动
+  if (!result && hasRep && Date.now() < funcDeadline - 38000) {
     try {
       result = await generateWithReplicate(fullPrompt);
       source = "replicate";
@@ -468,7 +500,7 @@ export async function GET(req: NextRequest) {
       errors.push(m);
       console.error(m);
     }
-  } else if (!result && process.env.REPLICATE_API_TOKEN) {
+  } else if (!result && hasRep) {
     errors.push("Replicate: skipped — " + Math.round(funcDeadline - Date.now()) + "ms left (need 38s)");
   }
 
@@ -479,8 +511,10 @@ export async function GET(req: NextRequest) {
       has_any_fallback: hasAnyFallback,
       env: {
         hasHFToken: !!process.env.HUGGINGFACE_API_TOKEN,
-        hasOpenAI: !!process.env.OPENAI_API_KEY,
-        hasReplicate: !!process.env.REPLICATE_API_TOKEN,
+        hasOpenAI,
+        hasReplicate: hasRep,
+        hasBingCookie: hasBing,
+        hasGemini,
         hasCreem: !!process.env.CREEM_API_KEY,
         hasSupabase: !!process.env.DATABASE_URL || !!supabaseAdmin,
       },
@@ -629,11 +663,203 @@ async function generateWithOpenAI(prompt: string): Promise<string> {
   const response = await fetch("https://api.openai.com/v1/images/generations", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "dall-e-3", prompt, n: 1, size: "1024x1024" }),
+    body: JSON.stringify({ model: "dall-e-3", prompt, n: 1, size: "1024x1024", response_format: "b64_json" }),
   });
   if (!response.ok) throw new Error(`OpenAI: ${response.status}`);
   const data = await response.json();
-  const url = data.data?.[0]?.url || data.data?.[0]?.b64_json;
+  const b64 = data.data?.[0]?.b64_json;
+  if (b64) return `data:image/png;base64,${b64}`;
+  const url = data.data?.[0]?.url;
   if (!url) throw new Error("No image from OpenAI");
-  return url;
+  const imgResp = await fetch(url, { signal: AbortSignal.timeout(15000) });
+  if (!imgResp.ok) throw new Error(`OpenAI img download: ${imgResp.status}`);
+  const b = Buffer.from(await imgResp.arrayBuffer());
+  const ext = (b[0] === 0x89) ? "png" : "jpeg";
+  return `data:image/${ext};base64,${b.toString("base64")}`;
+}
+
+// Bing Image Creator → DALL-E 3 免费、无水印、不限次（但需要 Microsoft 账号 _U cookie）
+// 流程参考 bing-create npm package: POST create form → extract id → poll async results
+async function generateWithBing(prompt: string): Promise<string> {
+  const cookie = process.env.BING_COOKIE;
+  if (!cookie) throw new Error("BING_COOKIE not configured");
+  const errs: string[] = [];
+  const encoded = encodeURIComponent(prompt);
+  const HEADERS = {
+    "Cookie": `_U=${cookie}`,
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36 Edg/128.0",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Referer": "https://www.bing.com/images/create",
+  };
+  try {
+    // Step 1: POST create job (rt=3 → DALL-E 3)
+    const createUrl = `https://www.bing.com/images/create?q=${encoded}&rt=3&FORM=GENCRE`;
+    const createResp = await fetch(createUrl, {
+      method: "POST",
+      headers: { ...HEADERS, "Content-Type": "application/x-www-form-urlencoded" },
+      redirect: "manual",
+      signal: AbortSignal.timeout(20000),
+    });
+    const createText = await createResp.text().catch(() => "");
+    // Find the request ID — Bing returns id=XXXX in redirect URL or in body
+    let id = "";
+    const loc = createResp.headers.get("location") || "";
+    const idMatch1 = loc.match(/[?&]id=([A-Za-z0-9_-]+)/);
+    if (idMatch1) id = idMatch1[1];
+    if (!id) {
+      const idMatch2 = createText.match(/id\s*[:=]\s*["']?([A-Za-z0-9_-]{10,})["']?/i);
+      if (idMatch2) id = idMatch2[1];
+    }
+    // If nothing yet, fall back: use IGNORE429 cookie trick (cookie cvid approach is unreliable, skip to poll)
+    // Just search body for any /async/results/<id> pattern
+    if (!id) {
+      const idMatch3 = createText.match(/\/async\/results\/([A-Za-z0-9_-]+)/i);
+      if (idMatch3) id = idMatch3[1];
+    }
+    if (!id) {
+      const s = createText.slice(0, 400).replace(/[\r\n]/g, " ");
+      if (/sign.?in|login|suspended|blocked|captcha/i.test(createText)) {
+        throw new Error("Bing cookie expired/invalid (login needed)");
+      }
+      throw new Error(`Bing: no id found after job submit HTTP ${createResp.status}. snippet=${s}`);
+    }
+    // Step 2: poll up to 15s
+    const pollStart = Date.now();
+    const pollTimeoutMs = 16000;
+    while (Date.now() - pollStart < pollTimeoutMs) {
+      const pollUrl = `https://www.bing.com/images/create/async/results/${encodeURIComponent(id)}?q=${encoded}`;
+      const pollResp = await fetch(pollUrl, {
+        headers: { ...HEADERS, "Accept": "*/*" },
+        signal: AbortSignal.timeout(15000),
+      });
+      const text = await pollResp.text().catch(() => "");
+      if (!text) { await new Promise(r => setTimeout(r, 1200)); continue; }
+      // If Bing says still waiting / processing
+      if (/still working|processing|please wait|not be long/i.test(text) && text.length < 3000) {
+        await new Promise(r => setTimeout(r, 1500));
+        continue;
+      }
+      // Parse JSON if it's a JSON response, otherwise parse mclass="girr_ir" image URLs in HTML
+      let urls: string[] = [];
+      try {
+        const j = JSON.parse(text);
+        if (Array.isArray(j?.value)) urls = j.value.map((v: any) => v?.contentUrl || v?.Url || v?.url || "").filter(Boolean);
+        else if (Array.isArray(j?.images)) urls = j.images.map((x: any) => x?.contentUrl || x?.url || "").filter(Boolean);
+      } catch {
+        // HTML format — extract all m=1 bing image URLs
+        const re = /src="([^"]*imgt\.fre\.bing\.net[^"]+)"/gi;
+        let m;
+        while ((m = re.exec(text)) !== null) {
+          let u = m[1].replace(/&amp;/g, "&");
+          if (!u.startsWith("http")) u = "https:" + u;
+          urls.push(u);
+        }
+        // also try contentUrl
+        const re2 = /contentUrl["']?\s*[:=]\s*["']([^"']+)/gi;
+        let m2;
+        while ((m2 = re2.exec(text)) !== null) urls.push(m2[1]);
+      }
+      urls = urls.filter(u => typeof u === "string" && /^(https?:)?\/\//i.test(u));
+      if (urls.length === 0) {
+        if (/no image|0 results|error|failed/i.test(text) && text.length < 4000) {
+          errs.push(`Bing poll rejected: ${text.slice(0, 200)}`);
+          break;
+        }
+        await new Promise(r => setTimeout(r, 1000));
+        continue;
+      }
+      // Pick first URL, download to base64
+      const first = urls[0];
+      try {
+        const imgResp = await fetch(first, { signal: AbortSignal.timeout(15000), headers: { ...HEADERS, "Accept": "image/*" } });
+        if (!imgResp.ok) throw new Error(`Bing img download ${imgResp.status}`);
+        const b = Buffer.from(await imgResp.arrayBuffer());
+        const sniff = (b[0] === 0xff && b[1] === 0xd8) || (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47);
+        if (!sniff || b.length < 10000) throw new Error(`Bing bad image ${b.length}B`);
+        const ext = b[0] === 0x89 ? "png" : "jpeg";
+        return `data:image/${ext};base64,${b.toString("base64")}`;
+      } catch (ie: any) {
+        // Try second URL if first fails
+        if (urls[1]) {
+          const imgResp2 = await fetch(urls[1], { signal: AbortSignal.timeout(15000), headers: { ...HEADERS, "Accept": "image/*" } });
+          if (imgResp2.ok) {
+            const b2 = Buffer.from(await imgResp2.arrayBuffer());
+            const ok2 = (b2[0] === 0xff && b2[1] === 0xd8) || (b2[0] === 0x89 && b2[1] === 0x50 && b2[2] === 0x4e && b2[3] === 0x47);
+            if (ok2 && b2.length >= 10000) {
+              const ext2 = b2[0] === 0x89 ? "png" : "jpeg";
+              return `data:image/${ext2};base64,${b2.toString("base64")}`;
+            }
+          }
+        }
+        throw ie;
+      }
+    }
+    throw new Error("Bing poll timeout 16s — " + (errs[0] || "no results"));
+  } catch (e: any) {
+    if (errs.length > 0) throw new Error(e.message + " ; " + errs.join(" ; ").slice(0, 120));
+    throw e;
+  }
+}
+
+// Google Gemini Nano Banana 2 (Google AI Studio API key)
+// https://ai.google.dev/api/imgen — model gemini-2.5-flash-image-preview
+async function generateWithGemini(prompt: string): Promise<string> {
+  const key = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
+  if (!key) throw new Error("GOOGLE_API_KEY not configured");
+  // Use googleimagen-3.0-generate-002 (Imagen 3) if available, fall back to Gemini image
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${key}`;
+  const resp = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-goog-api-version": "v1beta" },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        responseModalities: ["image"],
+        number_of_images: 1,
+        image_size: "1024x1024",
+        aspect_ratio: "1:1",
+      },
+    }),
+    signal: AbortSignal.timeout(20000),
+  });
+  if (!resp.ok) {
+    const errText = await resp.text().catch(() => "");
+    // If image model not available on this endpoint, try the older Imagen 3 GenerateImages endpoint
+    if (resp.status === 404 || /not found|model not support/i.test(errText)) {
+      return generateWithGeminiImagenFallback(prompt, key);
+    }
+    throw new Error(`Gemini: HTTP ${resp.status} ${errText.slice(0, 120)}`);
+  }
+  const j = await resp.json();
+  // Walk candidates[].parts[] for inlineData (image/png;base64) or text
+  const parts = (j?.candidates?.[0]?.content?.parts || j?.candidates?.[0]?.parts || []) as any[];
+  for (const p of parts) {
+    if (p?.inlineData?.mimeType?.startsWith("image/") && p?.inlineData?.data) {
+      const mime = p.inlineData.mimeType.split("/")[1] || "png";
+      return `data:image/${mime};base64,${p.inlineData.data}`;
+    }
+  }
+  throw new Error("Gemini: no inline image in response. first_part_type=" + (parts[0] ? Object.keys(parts[0]).join(",") : "empty"));
+}
+async function generateWithGeminiImagenFallback(prompt: string, key: string): Promise<string> {
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`;
+  const resp = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: "Generate a photorealistic sticker image of the following: " + prompt }] }],
+    }),
+    signal: AbortSignal.timeout(20000),
+  });
+  if (!resp.ok) throw new Error(`Gemini fallback: HTTP ${resp.status} ${(await resp.text().catch(()=>"")).slice(0,120)}`);
+  const j = await resp.json();
+  const parts = (j?.candidates?.[0]?.content?.parts || j?.candidates?.[0]?.parts || []) as any[];
+  for (const p of parts) {
+    if (p?.inlineData?.mimeType?.startsWith("image/") && p?.inlineData?.data) {
+      const mime = p.inlineData.mimeType.split("/")[1] || "png";
+      return `data:image/${mime};base64,${p.inlineData.data}`;
+    }
+  }
+  throw new Error("Gemini fallback: no image inlineData returned");
 }
