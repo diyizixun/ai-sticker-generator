@@ -111,10 +111,11 @@ const FEMALE_WORDS = [
 function enhancePrompt(prompt: string): string {
   const lower = prompt.toLowerCase();
 
-  // 1) 名人面部特征增强 — 找到匹配的名人，注入详细五官描述
+  // 1) 名人面部特征增强 — 找到匹配的名人，**完全替换**用户 prompt 为详细五官描述
+  //    不能追加，否则中文/英文名字 + 描述混搭会让模型困惑，生成非目标面孔
   for (const [name, traits] of CELEB_TRAITS) {
     if (lower.includes(name)) {
-      return prompt + ", " + traits;
+      return traits + ", " + prompt;
     }
   }
 
@@ -403,7 +404,9 @@ export async function GET(req: NextRequest) {
 
   const stylePrompt = STYLE_PROMPTS[styleId] || "sticker design";
   const userPromptEnhanced = enhancePrompt(userPrompt);
-  const fullPrompt = `${stylePrompt}, ${userPromptEnhanced}, sticker, white outline, die-cut sticker shape, clean background, vibrant colors, high quality`;
+  // fullPrompt: 名人特征描述放最前（权重最高），去掉中文原名避免模型混淆
+  const fullPrompt = `${stylePrompt}, ${userPromptEnhanced}, sticker, white outline, die-cut sticker shape, clean background, vibrant colors, high quality, detailed face, photorealistic`;
+  console.log("[PROMPT] user=", JSON.stringify(userPrompt), "→ enhanced=", JSON.stringify(userPromptEnhanced));
 
   // 依次尝试各生成接口（先快后慢，永远不要先跑长轮询！）
   const funcDeadline = Date.now() + 59000;
