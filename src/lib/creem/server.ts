@@ -1,9 +1,7 @@
 // Creem支付 - 服务端工具
-// 2026-11-09 修复：monthly 产品 prod_7OurPplwMMeub0vPOxl6F 已删除，API 404
-// 策略：
-//   1. 优先用 API 创建 checkout session (必须带 session id)
-//   2. 产品不存在时自动降级到另一个产品 ID
-//   3. 不再使用裸 product_id 的 fallback URL (永远 404)
+// 2026-11-09: monthly 产品 prod_7OurPplwMMeub0vPOxl6F 已在 Creem 后台删除
+// 目前 yearly prod_3cy26xwgYp3NTUwgQEyeVa 是唯一存活的产品
+// ⚠️ 不要把产品 ID 随便写死 — Creem 后台删了就得重来
 
 export function verifyCreemWebhookSignature(
   payload: string,
@@ -18,7 +16,8 @@ export function verifyCreemWebhookSignature(
   return expectedSig === signature;
 }
 
-// 注意：不要随便改这两个 ID，Creem 后台删了要重新填
+// 产品 ID：从环境变量读，没设就用默认值
+// 如果 Creem 后台删了产品，必须手动改这里或设环境变量
 const MONTHLY_ID = process.env.CREEM_PRO_MONTHLY_PRODUCT_ID || "prod_7OurPplwMMeub0vPOxl6F";
 const YEARLY_ID = process.env.CREEM_PRO_YEARLY_PRODUCT_ID || "prod_3cy26xwgYp3NTUwgQEyeVa";
 export const CREEM_PRODUCTS = {
@@ -29,7 +28,8 @@ export const CREEM_PRODUCTS = {
 const CREEM_API_KEY_PARTS = ["creem_", "5422yloi", "CqVzHiFf", "tKMM4F"];
 const CREEM_API_KEY = process.env.CREEM_API_KEY || CREEM_API_KEY_PARTS.join("");
 
-// 尝试用 Creem API 创建 checkout session
+// Creem API 创建 checkout session
+// 返回: checkout_url 字符串 | null(网络错) | "PRODUCT_NOT_FOUND"(产品被删)
 async function createCheckoutWithApi(
   productId: string,
   userEmail: string,
@@ -55,20 +55,23 @@ async function createCheckoutWithApi(
 
     if (response.ok) {
       const data = await response.json();
-      console.log("[Creem] ✅ Checkout created:", data.checkout_url || data.checkoutUrl);
       const url = (data.checkout_url || data.checkoutUrl) as string | undefined;
       if (url && typeof url === "string") return url;
+      return null;
     }
 
     const errText = await response.text().catch(() => "");
     console.warn("[Creem] API", response.status, errText);
 
-    // 404 Product not found — 让调用方知道换产品
-    if (response.status === 404 || errText.includes("not found")) {
-      return "PRODUCT_NOT_FOUND";
+    // 产品不存在 — 返回特殊错误码让调用方知道
+    if (response.status === 404) {
+      const err = new Error("PRODUCT_NOT_FOUND");
+      (err as any).status = 404;
+      throw err;
     }
     return null;
-  } catch (err) {
+  } catch (err: any) {
+    if (err.message === "PRODUCT_NOT_FOUND") throw err;
     console.error("[Creem] 网络错误:", err);
     return null;
   }
@@ -81,30 +84,23 @@ export async function getCheckoutUrl(
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.aisticker.pics";
   const successUrl = `${baseUrl}/pricing?checkout_id={CHECKOUT_ID}`;
 
-  // 尝试 1：用户指定的产品
-  const result1 = await createCheckoutWithApi(productId, userEmail, successUrl);
-  if (result1 && result1 !== "PRODUCT_NOT_FOUND") return result1;
-
-  // 产品不存在 — 自动降级到另一个产品 ID
-  const altProduct = productId === MONTHLY_ID ? YEARLY_ID : MONTHLY_ID;
-  if (altProduct !== productId) {
-    console.warn(`[Creem] 产品 ${productId} 不存在，降级到 ${altProduct}`);
-    const result2 = await createCheckoutWithApi(altProduct, userEmail, successUrl);
-    if (result2 && result2 !== "PRODUCT_NOT_FOUND") return result2;
+  try {
+    const url = await createCheckoutWithApi(productId, userEmail, successUrl);
+    if (url) return url;
+  } catch (err: any) {
+    if (err.message === "PRODUCT_NOT_FOUND") {
+      const plan = productId === MONTHLY_ID ? "Monthly ($9.9/mo)" : "Yearly ($79/yr)";
+      throw new Error(
+        `Creem 产品 ${plan} (${productId}) 不存在。请去 Creem 后台重新创建产品，` +
+        `然后设置环境变量 CREEM_PRO_${productId === MONTHLY_ID ? "MONTHLY" : "YEARLY"}_PRODUCT_ID。`
+      );
+    }
+    throw err;
   }
 
-  // 两个都 404 — 直接硬编码试 yearly（当前唯一存活的）
-  const hardcodedResult = await createCheckoutWithApi(
-    "prod_3cy26xwgYp3NTUwgQEyeVa",
-    userEmail,
-    successUrl
-  );
-  if (hardcodedResult && hardcodedResult !== "PRODUCT_NOT_FOUND") {
-    console.warn("[Creem] 前两个都挂了，用硬编码 yearly 兜底");
-    return hardcodedResult;
-  }
+  // 网络错误重试一次
+  const url2 = await createCheckoutWithApi(productId, userEmail, successUrl);
+  if (url2) return url2;
 
-  throw new Error(
-    `所有 Creem 产品均不可用。请在 Creem 后台重新创建 monthly 产品并更新 CREEM_PRO_MONTHLY_PRODUCT_ID 环境变量。`
-  );
+  throw new Error("Creem 支付服务暂时不可用，请稍后重试");
 }

@@ -25,11 +25,11 @@ export async function POST(request: Request) {
     const checkoutUrl = await getCheckoutUrl(productId, email);
 
     return Response.json({ url: checkoutUrl });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Checkout error:", error);
-    return Response.json(
-      { error: "Failed to create checkout session" },
-      { status: 500 }
-    );
+    const msg = error?.message || "Failed to create checkout session";
+    // 产品不存在返回 400，其他 500
+    const status = msg.includes("不存在") || msg.includes("PRODUCT_NOT_FOUND") ? 400 : 500;
+    return Response.json({ error: msg }, { status });
   }
 }
