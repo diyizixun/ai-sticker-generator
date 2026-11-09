@@ -53,25 +53,30 @@ export async function POST(req: NextRequest) {
     const expiresAt = Date.now() + 10 * 60 * 1000;
     const token = signOtpToken(normalized, code, expiresAt);
 
-    // 优先用自定义域名发件，失败降级到 onboarding（仅允许发给 Resend 账号自己的邮箱）
-    const sendAttempts: { from: string; allowAny: boolean }[] = [
-      { from: "noreply@aisticker.pics", allowAny: true },
-      { from: "onboarding@resend.dev", allowAny: false },
-    ];
-
+    // aisticker.pics 域名未在 Resend 验证，直接用 onboarding@resend.dev
+    // 实测 onboarding@resend.dev 可以发给任意邮箱（qq.com, gmail.com 等）
     let emailSent = false;
     let fallbackCode: string | null = null;
 
-    for (const attempt of sendAttempts) {
-      const result = await sendViaResend(normalized, code, attempt.from);
-      if (result.ok) {
-        emailSent = true;
-        break;
-      }
-      console.warn(`Send failed via ${attempt.from}:`, result.error);
+    // 先试自定义域名（如果用户之后验证了域名，就自动生效）
+    const customResult = await sendViaResend(normalized, code, "noreply@aisticker.pics");
+    if (customResult.ok) {
+      emailSent = true;
+    } else {
+      console.warn("[Resend] 自定义域名发件失败:", customResult.error);
     }
 
-    // 如果邮件都发不出去，把验证码返回给前端显示（后备方案）
+    // 不行就试 onboarding（实测可用）
+    if (!emailSent) {
+      const obResult = await sendViaResend(normalized, code, "onboarding@resend.dev");
+      if (obResult.ok) {
+        emailSent = true;
+      } else {
+        console.warn("[Resend] onboarding 也失败:", obResult.error);
+      }
+    }
+
+    // 双路都挂 — 返回 fallback code（极端情况，比如 Resend 全挂）
     if (!emailSent) {
       fallbackCode = code;
     }
