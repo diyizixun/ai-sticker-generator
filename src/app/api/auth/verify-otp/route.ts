@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyOtpToken } from "@/lib/otp-token";
+import { resignOtpToken, verifyOtpToken } from "@/lib/otp-token";
+
+const MAX_ATTEMPTS = 5;
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,38 +19,79 @@ export async function POST(req: NextRequest) {
     }
 
     const result = verifyOtpToken(token, normalized, code);
-    if (!result.valid) {
-      const msgs: Record<string, string> = {
-        invalid_token: "验证码无效",
-        invalid_signature: "验证码无效",
-        invalid_payload: "验证码无效",
-        email_mismatch: "邮箱与发送验证码的邮箱不一致",
-        code_mismatch: "验证码错误",
-        expired: "验证码已过期，请重新发送",
-        error: "验证失败",
-      };
-      return NextResponse.json(
-        { error: msgs[result.reason || "error"] || "验证失败" },
-        { status: 400 }
-      );
+
+    // ---------- 成功 ----------
+    if (result.valid) {
+      const response = NextResponse.json({ success: true, email: normalized });
+      response.cookies.set("session", normalized, {
+        maxAge: 60 * 60 * 24 * 30, // 30 天
+        httpOnly: true,
+        secure: true,
+        sameSite: "lax",
+        path: "/",
+      });
+      response.cookies.set("otp_token", "", { maxAge: 0, path: "/" });
+      return response;
     }
 
-    // 验证成功，设置登录会话 cookie
-    const response = NextResponse.json({ success: true, email: normalized });
-    response.cookies.set("session", normalized, {
-      maxAge: 60 * 60 * 24 * 30, // 30 天
-      httpOnly: true,
-      secure: true,
-      sameSite: "lax",
-      path: "/",
-    });
-    // 清除 OTP token
-    response.cookies.set("otp_token", "", {
-      maxAge: 0,
-      path: "/",
-    });
+    // ---------- 锁死 ----------
+    if (result.reason === "too_many_attempts") {
+      const res = NextResponse.json(
+        { error: "尝试次数过多，请重新发送验证码" },
+        { status: 429 }
+      );
+      res.cookies.set("otp_token", "", { maxAge: 0, path: "/" });
+      return res;
+    }
 
-    return response;
+    // ---------- 验证码错误：attempts+1，重签回写 cookie ----------
+    if (result.reason === "code_mismatch") {
+      const newAttempts = (result.attempts ?? 0) + 1;
+
+      if (newAttempts >= MAX_ATTEMPTS) {
+        const res = NextResponse.json(
+          { error: "尝试次数过多，请重新发送验证码" },
+          { status: 429 }
+        );
+        res.cookies.set("otp_token", "", { maxAge: 0, path: "/" });
+        return res;
+      }
+
+      const newToken = resignOtpToken(token, newAttempts);
+      const res = NextResponse.json(
+        { error: `验证码错误，还可尝试 ${MAX_ATTEMPTS - newAttempts} 次` },
+        { status: 400 }
+      );
+      if (newToken) {
+        res.cookies.set("otp_token", newToken, {
+          maxAge: 10 * 60,
+          httpOnly: true,
+          secure: true,
+          sameSite: "lax",
+          path: "/",
+        });
+      } else {
+        // 重签失败直接锁死
+        res.cookies.set("otp_token", "", { maxAge: 0, path: "/" });
+      }
+      return res;
+    }
+
+    // ---------- 其他不可恢复错误：过期 / 签名无效 / 邮箱不匹配 ----------
+    const msgs: Record<string, string> = {
+      invalid_token: "验证码无效",
+      invalid_signature: "验证码无效",
+      invalid_payload: "验证码无效",
+      email_mismatch: "邮箱与发送验证码的邮箱不一致",
+      expired: "验证码已过期，请重新发送",
+      error: "验证失败",
+    };
+    const finalRes = NextResponse.json(
+      { error: msgs[result.reason || "error"] || "验证失败" },
+      { status: 400 }
+    );
+    finalRes.cookies.set("otp_token", "", { maxAge: 0, path: "/" });
+    return finalRes;
   } catch (e: any) {
     return NextResponse.json({ error: "验证失败" }, { status: 500 });
   }
