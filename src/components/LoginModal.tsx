@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, Mail, ArrowRight, Loader2, CheckCircle, AlertTriangle } from "lucide-react";
+import { X, Mail, ArrowRight, Loader2, CheckCircle } from "lucide-react";
 
 interface LoginModalProps {
   open: boolean;
@@ -15,7 +15,6 @@ export default function LoginModal({ open, onClose, onSuccess }: LoginModalProps
   const [step, setStep] = useState<"email" | "verify">("email");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [fallbackCode, setFallbackCode] = useState<string | null>(null);
 
   if (!open) return null;
 
@@ -26,7 +25,6 @@ export default function LoginModal({ open, onClose, onSuccess }: LoginModalProps
     }
     setLoading(true);
     setError("");
-    setFallbackCode(null);
     try {
       const res = await fetch("/api/auth/send-otp", {
         method: "POST",
@@ -36,8 +34,6 @@ export default function LoginModal({ open, onClose, onSuccess }: LoginModalProps
       const data = await res.json();
       if (res.ok && data.success) {
         setStep("verify");
-        if (data.devCode) setCode(data.devCode);
-        if (data.fallbackCode) setFallbackCode(data.fallbackCode);
       } else {
         setError(data.error || "Failed to send code");
       }
@@ -81,7 +77,6 @@ export default function LoginModal({ open, onClose, onSuccess }: LoginModalProps
     setCode("");
     setError("");
     setLoading(false);
-    setFallbackCode(null);
     onClose();
   };
 
@@ -114,25 +109,6 @@ export default function LoginModal({ open, onClose, onSuccess }: LoginModalProps
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
             {error}
-          </div>
-        )}
-
-        {fallbackCode && step === "verify" && (
-          <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-            <div className="flex items-start gap-2">
-              <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="text-sm font-medium text-amber-700">
-                  Email service temporarily unavailable
-                </p>
-                <p className="text-xs text-amber-600 mt-0.5">
-                  Use this verification code to sign in:
-                </p>
-                <p className="text-2xl font-bold tracking-widest text-purple-600 mt-2 text-center font-mono">
-                  {fallbackCode}
-                </p>
-              </div>
-            </div>
           </div>
         )}
 
@@ -198,7 +174,7 @@ export default function LoginModal({ open, onClose, onSuccess }: LoginModalProps
               )}
             </button>
             <button
-              onClick={() => { setStep("email"); setError(""); setCode(""); setFallbackCode(null); }}
+              onClick={() => { setStep("email"); setError(""); setCode(""); }}
               className="w-full mt-3 text-sm text-gray-500 hover:text-gray-700 transition-colors"
             >
               ← Change email

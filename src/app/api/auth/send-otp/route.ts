@@ -53,39 +53,37 @@ export async function POST(req: NextRequest) {
     const expiresAt = Date.now() + 10 * 60 * 1000;
     const token = signOtpToken(normalized, code, expiresAt);
 
-    // aisticker.pics 域名未在 Resend 验证，直接用 onboarding@resend.dev
-    // 实测 onboarding@resend.dev 可以发给任意邮箱（qq.com, gmail.com 等）
+    // 两路发件：先试自定义域名（未来验证了就能用），再 onboarding@resend.dev
     let emailSent = false;
-    let fallbackCode: string | null = null;
+    let lastError = "";
 
-    // 先试自定义域名（如果用户之后验证了域名，就自动生效）
     const customResult = await sendViaResend(normalized, code, "noreply@aisticker.pics");
     if (customResult.ok) {
       emailSent = true;
     } else {
+      lastError = customResult.error || "";
       console.warn("[Resend] 自定义域名发件失败:", customResult.error);
     }
 
-    // 不行就试 onboarding（实测可用）
     if (!emailSent) {
       const obResult = await sendViaResend(normalized, code, "onboarding@resend.dev");
       if (obResult.ok) {
         emailSent = true;
       } else {
+        lastError = obResult.error || lastError;
         console.warn("[Resend] onboarding 也失败:", obResult.error);
       }
     }
 
-    // 双路都挂 — 返回 fallback code（极端情况，比如 Resend 全挂）
+    // 邮件发不出去就是 503 — 绝对不能把验证码泄露给客户端
     if (!emailSent) {
-      fallbackCode = code;
+      return NextResponse.json(
+        { error: "邮件服务暂时不可用，请稍后重试" },
+        { status: 503 }
+      );
     }
 
-    const response = NextResponse.json(
-      emailSent
-        ? { success: true }
-        : { success: true, fallbackCode, message: "邮件服务暂不可用，请使用下方验证码登录" }
-    );
+    const response = NextResponse.json({ success: true });
     response.cookies.set("otp_token", token, {
       maxAge: 10 * 60,
       httpOnly: true,
