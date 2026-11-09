@@ -18,8 +18,8 @@ export function verifyCreemWebhookSignature(
   return expectedSig === signature;
 }
 
-// ⚠️ 2026-11-09: monthly 产品已删除！环境变量覆盖前先用 yearly 兜底
-const MONTHLY_ID = process.env.CREEM_PRO_MONTHLY_PRODUCT_ID || "prod_3cy26xwgYp3NTUwgQEyeVa";
+// 注意：不要随便改这两个 ID，Creem 后台删了要重新填
+const MONTHLY_ID = process.env.CREEM_PRO_MONTHLY_PRODUCT_ID || "prod_7OurPplwMMeub0vPOxl6F";
 const YEARLY_ID = process.env.CREEM_PRO_YEARLY_PRODUCT_ID || "prod_3cy26xwgYp3NTUwgQEyeVa";
 export const CREEM_PRODUCTS = {
   proMonthly: MONTHLY_ID,
