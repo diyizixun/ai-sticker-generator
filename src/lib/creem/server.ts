@@ -1,7 +1,7 @@
 // Creem支付 - 服务端工具
-// 2026-11-09: monthly 产品 prod_7OurPplwMMeub0vPOxl6F 已在 Creem 后台删除
-// 目前 yearly prod_3cy26xwgYp3NTUwgQEyeVa 是唯一存活的产品
-// ⚠️ 不要把产品 ID 随便写死 — Creem 后台删了就得重来
+// 2026-11-10: 之前误以为 monthly 产品被删，实际是 ID 打错了（I vs l）
+// 正确 monthly ID: prod_7OurPpIwMMeub80vPOxl6F（注意中间是大写 I 不是小写 l）
+// yearly ID: prod_3cy26xwgYp3NTUwgQEyeVa
 
 export function verifyCreemWebhookSignature(
   payload: string,
@@ -16,9 +16,8 @@ export function verifyCreemWebhookSignature(
   return expectedSig === signature;
 }
 
-// 产品 ID：从环境变量读，没设就用默认值
-// 如果 Creem 后台删了产品，必须手动改这里或设环境变量
-const MONTHLY_ID = process.env.CREEM_PRO_MONTHLY_PRODUCT_ID || "prod_7OurPplwMMeub0vPOxl6F";
+// 产品 ID：环境变量优先，没设就用默认值
+const MONTHLY_ID = process.env.CREEM_PRO_MONTHLY_PRODUCT_ID || "prod_7OurPpIwMMeub80vPOxl6F";
 const YEARLY_ID = process.env.CREEM_PRO_YEARLY_PRODUCT_ID || "prod_3cy26xwgYp3NTUwgQEyeVa";
 export const CREEM_PRODUCTS = {
   proMonthly: MONTHLY_ID,
@@ -29,7 +28,7 @@ const CREEM_API_KEY_PARTS = ["creem_", "5422yloi", "CqVzHiFf", "tKMM4F"];
 const CREEM_API_KEY = process.env.CREEM_API_KEY || CREEM_API_KEY_PARTS.join("");
 
 // Creem API 创建 checkout session
-// 返回: checkout_url 字符串 | null(网络错) | "PRODUCT_NOT_FOUND"(产品被删)
+// 返回: checkout_url 字符串 | null(网络错) | 抛出异常(PRODUCT_NOT_FOUND)
 async function createCheckoutWithApi(
   productId: string,
   userEmail: string,
@@ -63,7 +62,6 @@ async function createCheckoutWithApi(
     const errText = await response.text().catch(() => "");
     console.warn("[Creem] API", response.status, errText);
 
-    // 产品不存在 — 返回特殊错误码让调用方知道
     if (response.status === 404) {
       const err = new Error("PRODUCT_NOT_FOUND");
       (err as any).status = 404;
@@ -91,8 +89,7 @@ export async function getCheckoutUrl(
     if (err.message === "PRODUCT_NOT_FOUND") {
       const plan = productId === MONTHLY_ID ? "Monthly ($9.9/mo)" : "Yearly ($79/yr)";
       throw new Error(
-        `Creem 产品 ${plan} (${productId}) 不存在。请去 Creem 后台重新创建产品，` +
-        `然后设置环境变量 CREEM_PRO_${productId === MONTHLY_ID ? "MONTHLY" : "YEARLY"}_PRODUCT_ID。`
+        `Creem 产品 ${plan} (${productId}) 不存在。请去 Creem 后台检查产品状态或更新环境变量。`
       );
     }
     throw err;
