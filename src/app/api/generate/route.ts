@@ -454,9 +454,8 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  const stylePrompt = STYLE_PROMPTS[styleId] || "sticker design";
   // ⚠️ 关键：名人特征 + 用户原始 prompt 必须放最前面（权重最高）
-  // stylePrompt 放中间，通用 sticker 描述放最后
-  // Pollinations/FLUX 系列模型对 prompt 顺序非常敏感：最前面的描述主导生成
   const userPromptEnhanced = enhancePrompt(userPrompt);
   const fullPrompt = `${userPromptEnhanced}, ${stylePrompt}, sticker, white outline, die-cut sticker shape, transparent or clean background, vibrant colors, high quality, detailed`;
   console.log("[PROMPT] user=", JSON.stringify(userPrompt), "→ enhanced=", JSON.stringify(userPromptEnhanced), "→ full=", JSON.stringify(fullPrompt));
@@ -527,8 +526,6 @@ export async function GET(req: NextRequest) {
   if (!result) {
     const debug = {
       elapsed_ms: 59000 - Math.round(funcDeadline - Date.now()),
-      poll_budget_ms: pollBudgetMs,
-      has_any_fallback: hasAnyFallback,
       env: {
         hasHFToken: !!process.env.HUGGINGFACE_API_TOKEN,
         hasOpenAI,
