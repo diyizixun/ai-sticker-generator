@@ -4,7 +4,6 @@
 // 人物性别锁: musk/trump/biden 等名人 + man/woman/boy/girl 关键词 → 自动注入性别锁词
 
 import { NextRequest, NextResponse } from "next/server";
-import sharp from "sharp";
 import { getClientId, checkQuota } from "@/lib/quota";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { STYLES } from "@/lib/config";
@@ -209,27 +208,7 @@ function sniffImage(bytes: Buffer): { ok: true; ext: "jpeg" | "png" } | { ok: fa
 }
 
 // Pollinations 2026-11 开始强制加 "pollinations.ai" 水印在右下角
-// nologo=true 参数已失效。用 sharp 裁掉底部 12%（水印固定在右下边缘）
-async function stripPollinationsWatermark(buffer: Buffer, ext: "jpeg" | "png"): Promise<Buffer> {
-  try {
-    const img = sharp(buffer);
-    const meta = await img.metadata();
-    const w = meta.width || 1024;
-    const h = meta.height || 1024;
-    // 裁掉底部 12% + 右边 12%，水印就在那个角落
-    const cropH = Math.floor(h * 0.88);
-    const cropW = Math.floor(w * 0.88);
-    const cropped = await sharp(buffer)
-      .extract({ left: 0, top: 0, width: cropW, height: cropH })
-      .resize(w, h) // 放大回原尺寸，保持清晰度
-      .toFormat(ext)
-      .toBuffer();
-    return cropped;
-  } catch (e: any) {
-    console.warn("[stripWatermark] sharp 裁剪失败，返回原图:", e.message);
-    return buffer;
-  }
-}
+// nologo=true 参数已失效。水印在后端不裁，前端 canvas 裁（见 Gallery 组件）
 
 async function generateWithPollinations(prompt: string, deadline?: number): Promise<string> {
   const encoded = encodeURIComponent(prompt);
@@ -327,15 +306,10 @@ async function generateWithPollinations(prompt: string, deadline?: number): Prom
           if (!isLast) break;
           else if (buffer.length < 6000) break;
         }
-        // 裁 Pollinations 强制水印（右下角 pollinations.ai）
-        let finalBuffer = buffer;
-        try {
-          finalBuffer = await stripPollinationsWatermark(buffer, sniff.ext);
-        } catch { /* already falls through to original */ }
         console.log(
-          `[Pollinations] ✅ SUCCESS ${model.id} — ${(finalBuffer.length / 1024).toFixed(0)}KB ${sniff.ext} · ${elapsed}ms (watermark stripped)`,
+          `[Pollinations] ✅ SUCCESS ${model.id} — ${(buffer.length / 1024).toFixed(0)}KB ${sniff.ext} · ${elapsed}ms`,
         );
-        return `data:image/${sniff.ext};base64,${finalBuffer.toString("base64")}`;
+        return `data:image/${sniff.ext};base64,${buffer.toString("base64")}`;
       } catch (e: any) {
         clearTimeout(timeout);
         if (retry === 0 && model.retries > 1 && (e.name === "AbortError" || /timeout|abort/i.test(e.message))) continue;
@@ -395,10 +369,7 @@ async function generateWithHuggingFace(prompt: string): Promise<string> {
         continue;
       }
       const ext = buffer[0] === 0xff ? "jpeg" : "png";
-      // 裁 Pollinations 强制水印
-      let finalBuf = buffer;
-      try { finalBuf = await stripPollinationsWatermark(buffer, ext); } catch {}
-      return `data:image/${ext};base64,${finalBuf.toString("base64")}`;
+      return `data:image/${ext};base64,${buffer.toString("base64")}`;
     } catch (e: any) {
       errors.push(`${att.qs || "default"}: ${e.name} ${e.message?.slice(0,60)}`);
       continue;
@@ -475,103 +446,67 @@ export async function GET(req: NextRequest) {
   const fullPrompt = `${userPromptEnhanced}, ${stylePrompt}, sticker, white outline, die-cut sticker shape, transparent or clean background, vibrant colors, high quality, detailed`;
   console.log("[PROMPT] user=", JSON.stringify(userPrompt), "→ enhanced=", JSON.stringify(userPromptEnhanced), "→ full=", JSON.stringify(fullPrompt));
 
-  // 依次尝试各生成接口（先快后慢，永远不要先跑长轮询！）
+  // 依次尝试各生成接口（优先无水印的付费 API，最后才 Pollinations 水印兜底）
   const funcDeadline = Date.now() + 59000;
   let result: string | null = null;
   let source = "";
   const errors: string[] = [];
 
-  // 兜底 API 可用性检测 → 决定 Pollinations 吃多少预算
   const hasBing = !!process.env.BING_COOKIE;
   const hasOpenAI = !!process.env.OPENAI_API_KEY;
   const hasRep = !!process.env.REPLICATE_API_TOKEN;
   const hasGemini = !!process.env.GOOGLE_API_KEY || !!process.env.GEMINI_API_KEY;
-  const hasAnyFallback =
-    !!process.env.HUGGINGFACE_API_TOKEN || hasOpenAI || hasRep || hasBing || hasGemini;
-  // 有兜底：Pollinations 28s → 剩 31s 给后面；无兜底：Pollinations 54s
-  const pollBudgetMs = hasAnyFallback ? 28000 : 54000;
-  const pollEndAt = Date.now() + pollBudgetMs;
 
-  // 1. Pollinations — openai 第一版用户首选
-  {
-    try {
-      result = await generateWithPollinations(fullPrompt, pollEndAt);
-      source = "pollinations";
-    } catch (e: any) {
-      const m = "Pollinations: " + (e?.message || String(e)).slice(0, 120);
-      errors.push(m);
-      console.error(m);
-    }
-  }
+  // ⚠️ Pollinations 2026-11 起强制加水印 + 限速 1 张/45s/IP — 降级到最后兜底！
+  // 如果用户配了任何付费 API，优先用无水印的
+  // 预算分配：Pollinations 留给最后 15s
 
-  // 2. Pollinations fallback2（不同尺寸+seedream+双host）
-  if (!result && Date.now() < funcDeadline - 22000) {
-    try {
-      result = await generateWithHuggingFace(fullPrompt);
-      source = "fallback2";
-    } catch (e: any) {
-      const m = "Fallback2: " + (e?.message || String(e)).slice(0, 120);
-      errors.push(m);
-      console.error(m);
-    }
-  } else if (!result) {
-    errors.push("Fallback2: skipped — " + Math.round(funcDeadline - Date.now()) + "ms left (need 22s)");
-  }
-
-  // 3. Bing Image Creator (DALL-E 3) — 质量最高，完全免费，需 _U cookie
-  if (!result && hasBing && Date.now() < funcDeadline - 22000) {
+  // 1. Bing Image Creator (DALL-E 3) — 无水印、免费无限次（需 _U cookie）
+  if (!result && hasBing && Date.now() < funcDeadline - 18000) {
     try {
       result = await generateWithBing(fullPrompt);
       source = "bing-dalle3";
-    } catch (e: any) {
-      const m = "Bing(DALL-E3): " + (e?.message || String(e)).slice(0, 160);
-      errors.push(m);
-      console.error(m);
-    }
-  } else if (!result && hasBing) {
-    errors.push("Bing(DALL-E3): skipped — " + Math.round(funcDeadline - Date.now()) + "ms left (need 22s)");
+    } catch (e: any) { errors.push("Bing: " + (e?.message || "").slice(0, 160)); }
   }
 
-  // 4. OpenAI DALL-E 3
-  if (!result && hasOpenAI && Date.now() < funcDeadline - 15000) {
+  // 2. OpenAI DALL-E 3 — 无水印
+  if (!result && hasOpenAI && Date.now() < funcDeadline - 12000) {
     try {
       result = await generateWithOpenAI(fullPrompt);
       source = "openai-dalle3";
-    } catch (e: any) {
-      const m = "OpenAI: " + (e?.message || String(e)).slice(0, 120);
-      errors.push(m);
-      console.error(m);
-    }
-  } else if (!result && hasOpenAI) {
-    errors.push("OpenAI: skipped — " + Math.round(funcDeadline - Date.now()) + "ms left (need 15s)");
+    } catch (e: any) { errors.push("OpenAI: " + (e?.message || "").slice(0, 120)); }
   }
 
-  // 5. Google Gemini Nano Banana 2 / Imagen 3
-  if (!result && hasGemini && Date.now() < funcDeadline - 20000) {
+  // 3. Google Gemini Nano Banana 2 — 无水印
+  if (!result && hasGemini && Date.now() < funcDeadline - 18000) {
     try {
       result = await generateWithGemini(fullPrompt);
       source = "gemini";
-    } catch (e: any) {
-      const m = "Gemini: " + (e?.message || String(e)).slice(0, 160);
-      errors.push(m);
-      console.error(m);
-    }
-  } else if (!result && hasGemini) {
-    errors.push("Gemini: skipped — " + Math.round(funcDeadline - Date.now()) + "ms left (need 20s)");
+    } catch (e: any) { errors.push("Gemini: " + (e?.message || "").slice(0, 160)); }
   }
 
-  // 6. Replicate（最后）— 长轮询最坏 30s，只在剩余 >38s 时启动
-  if (!result && hasRep && Date.now() < funcDeadline - 38000) {
+  // 4. Replicate FLUX — 无水印
+  if (!result && hasRep && Date.now() < funcDeadline - 32000) {
     try {
       result = await generateWithReplicate(fullPrompt);
       source = "replicate";
-    } catch (e: any) {
-      const m = "Replicate: " + (e?.message || String(e)).slice(0, 120);
-      errors.push(m);
-      console.error(m);
-    }
-  } else if (!result && hasRep) {
-    errors.push("Replicate: skipped — " + Math.round(funcDeadline - Date.now()) + "ms left (need 38s)");
+    } catch (e: any) { errors.push("Replicate: " + (e?.message || "").slice(0, 120)); }
+  }
+
+  // 5. Pollinations fallback2（只有其他 API 全没配时才会走到这里）
+  if (!result && Date.now() < funcDeadline - 12000) {
+    try {
+      result = await generateWithHuggingFace(fullPrompt);
+      source = "fallback2";
+    } catch (e: any) { errors.push("Fallback2: " + (e?.message || "").slice(0, 120)); }
+  }
+
+  // 6. Pollinations 主链（最后兜底）
+  if (!result && Date.now() < funcDeadline - 12000) {
+    try {
+      result = await generateWithPollinations(fullPrompt, funcDeadline - 12000);
+      source = "pollinations";
+    } catch (e: any) { errors.push("Pollinations: " + (e?.message || "").slice(0, 120)); }
   }
 
   if (!result) {

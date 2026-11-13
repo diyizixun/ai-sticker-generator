@@ -28,6 +28,7 @@ export default function StickerImage({
   const [loading, setLoading] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
   const autoRetried = useRef(0);
+  const [source, setSource] = useState<string>("");
 
   const onQuotaUpdateRef = useRef(onQuotaUpdate);
   onQuotaUpdateRef.current = onQuotaUpdate;
@@ -56,6 +57,7 @@ export default function StickerImage({
 
       const json = await res.json();
       if (json.success && json.imageUrl) {
+        setSource(json.source || "");
         setDataUrl(json.imageUrl);
         if (json.quota && onQuotaUpdateRef.current) {
           onQuotaUpdateRef.current(json.quota.remaining, json.quota.limit);
@@ -85,19 +87,27 @@ export default function StickerImage({
     setLoadError(false);
     try {
       const img = e.currentTarget;
+      const w = img.naturalWidth || 512;
+      const h = img.naturalHeight || 512;
       const canvas = document.createElement("canvas");
-      canvas.width = img.naturalWidth || 512;
-      canvas.height = img.naturalHeight || 512;
+      canvas.width = w;
+      canvas.height = h;
       const ctx = canvas.getContext("2d");
       if (ctx) {
         ctx.drawImage(img, 0, 0);
+        // Pollinations 2026-11 强制加水印 "pollinations.ai" 在右下角
+        // 如果是 Pollinations 生成的，裁掉右下角 10%（水印固定在那个角落）
+        if (source === "pollinations" || source === "fallback2") {
+          ctx.clearRect(Math.floor(w * 0.88), Math.floor(h * 0.88), w, h);
+          console.log("[StickerImage] 裁掉 Pollinations 水印 (source=" + source + ")");
+        }
         const canvasDataUrl = canvas.toDataURL("image/jpeg", 0.92);
         if (onImageReady) onImageReady(canvasDataUrl);
       }
     } catch {
       if (dataUrl && onImageReady) onImageReady(dataUrl);
     }
-  }, [onImageReady, dataUrl]);
+  }, [onImageReady, dataUrl, source]);
 
   const handleRetry = useCallback(() => {
     setDataUrl(null);
