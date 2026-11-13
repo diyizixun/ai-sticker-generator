@@ -468,11 +468,12 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const stylePrompt = STYLE_PROMPTS[styleId] || "sticker design";
+  // ⚠️ 关键：名人特征 + 用户原始 prompt 必须放最前面（权重最高）
+  // stylePrompt 放中间，通用 sticker 描述放最后
+  // Pollinations/FLUX 系列模型对 prompt 顺序非常敏感：最前面的描述主导生成
   const userPromptEnhanced = enhancePrompt(userPrompt);
-  // fullPrompt: 名人特征描述放最前（权重最高），去掉中文原名避免模型混淆
-  const fullPrompt = `${stylePrompt}, ${userPromptEnhanced}, sticker, white outline, die-cut sticker shape, clean background, vibrant colors, high quality, detailed face, photorealistic`;
-  console.log("[PROMPT] user=", JSON.stringify(userPrompt), "→ enhanced=", JSON.stringify(userPromptEnhanced));
+  const fullPrompt = `${userPromptEnhanced}, ${stylePrompt}, sticker, white outline, die-cut sticker shape, transparent or clean background, vibrant colors, high quality, detailed`;
+  console.log("[PROMPT] user=", JSON.stringify(userPrompt), "→ enhanced=", JSON.stringify(userPromptEnhanced), "→ full=", JSON.stringify(fullPrompt));
 
   // 依次尝试各生成接口（先快后慢，永远不要先跑长轮询！）
   const funcDeadline = Date.now() + 59000;
@@ -667,7 +668,8 @@ export async function POST(req: NextRequest) {
     if (process.env.REPLICATE_API_TOKEN) {
       try {
         const stylePrompt = STYLE_PROMPTS[style] || "sticker design";
-        const fullPrompt = `${stylePrompt}, ${prompt}, sticker, white outline, die-cut sticker shape, clean background, vibrant colors, high quality`;
+        const userPromptEnhanced = enhancePrompt(prompt);
+        const fullPrompt = `${userPromptEnhanced}, ${stylePrompt}, sticker, white outline, die-cut sticker shape, clean background, vibrant colors, high quality`;
         const result = await generateWithReplicate(fullPrompt, true);
         if (userId && supabaseAdmin) {
           await supabaseAdmin
