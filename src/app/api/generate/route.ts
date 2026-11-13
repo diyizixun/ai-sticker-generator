@@ -4,6 +4,7 @@
 // 人物性别锁: musk/trump/biden 等名人 + man/woman/boy/girl 关键词 → 自动注入性别锁词
 
 import { NextRequest, NextResponse } from "next/server";
+import sharp from "sharp";
 import { getClientId, checkQuota } from "@/lib/quota";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { STYLES } from "@/lib/config";
@@ -19,67 +20,98 @@ const STYLE_PROMPTS: Record<string, string> = STYLES.reduce(
 
 // 名人面部特征数据库 — 开源模型不认识名人名字，
 // 必须注入详细五官描述才能生成相似的面孔
-// 格式: [匹配关键词, 面部特征描述]
+// ⚠️ 关键：中文关键词（马斯克/特朗普/拜登/马云...）放最前面，
+// 因为大量用户用中文搜名人，而 Pollinations 模型只懂英文五官描述
+// 格式: [匹配关键词（小写，中英文）, 面部特征描述（英文，放最前面权重最高）]
 const CELEB_TRAITS: [string, string][] = [
+  // === 必须优先匹配的中文关键词 ===
+  ["马斯克", "elon musk lookalike: balding man with short brown hair, receding hairline, square jaw, blue eyes, fair skin, mid-50s, stocky build"],
+  ["特斯拉", "elon musk lookalike: balding man with short brown hair, receding hairline, square jaw, blue eyes, fair skin, mid-50s"],
+  ["特朗普", "trump lookalike: blonde comb-over hairstyle, orange-tinted skin, blue eyes, broad face, pursed lips, heavyset build, late 70s man"],
+  ["川普", "trump lookalike: blonde comb-over hairstyle, orange-tinted skin, blue eyes, broad face, pursed lips, late 70s"],
+  ["拜登", "biden lookalike: white thinning hair, blue eyes, fair skin, wrinkled face, elderly man"],
+  ["奥巴马", "obama lookalike: short cropped black hair, dark brown skin, brown eyes, slim face, middle-aged Black man"],
+  ["普京", "putin lookalike: balding blonde hair, blue eyes, pale skin, stern expression, compact build, late 60s"],
+  ["马克龙", "macron lookalike: short dark hair, blue eyes, fair skin, slim face, middle-aged French man"],
+  ["泽连斯基", "zelensky lookalike: short brown hair, brown eyes, fair skin, stubble beard, middle-aged man"],
+  ["马云", "jack ma lookalike: balding man, small stature, round face, dark eyes, East Asian, glasses, distinctive smile"],
+  ["马化腾", "Chinese middle-aged man, short black hair, round face, glasses, East Asian"],
+  ["雷军", "middle-aged Chinese man, short black hair, round face, glasses, energetic smile"],
+  ["刘强东", "middle-aged Chinese man, short black hair, square face, glasses, East Asian"],
+  ["张一鸣", "young Chinese man, short black hair, glasses, slim face, neutral expression"],
+  ["任正非", "elderly Chinese man, balding gray hair, square glasses, weathered face, severe expression"],
+  ["张艺谋", "elderly Chinese man, gray hair, glasses, weathered face, East Asian"],
+  ["梅西", "messi lookalike: short brown hair, brown eyes, fair skin, short beard, compact build, Argentine man"],
+  ["c罗", "ronaldo lookalike: short dark hair, brown eyes, olive skin, muscular build, Portuguese man"],
+  ["贝克汉姆", "beckham lookalike: short blonde hair, blue eyes, fair skin, handsome face, tattoos, slim build"],
+  ["詹姆斯", "lebron lookalike: short black hair, dark brown skin, brown eyes, tall muscular build, beard, Black man"],
+  ["乔丹", "jordan lookalike: bald head, dark brown skin, brown eyes, tall athletic build, Black man"],
+  ["泰勒斯威夫特", "taylor swift lookalike: long blonde straight hair, blue eyes, fair skin, red lips, slim face, young woman"],
+  ["霉霉", "taylor swift lookalike: long blonde straight hair, blue eyes, fair skin, red lips, slim face, young woman"],
+  ["碧昂斯", "beyonce lookalike: long blonde wavy hair, light brown skin, brown eyes, curvy build, glamorous woman"],
+  ["蕾哈娜", "rihanna lookalike: short dark hair, brown skin, green eyes, full lips, Barbadian woman"],
+  ["金卡戴珊", "kim kardashian lookalike: long dark hair, olive skin, brown eyes, full lips, curvy figure"],
+  ["艾玛沃森", "emma watson lookalike: short brown hair, brown eyes, fair skin, slim face, British young woman"],
+  ["斯嘉丽约翰逊", "scarlett johansson lookalike: short blonde hair, blue eyes, fair skin, full lips, curvy figure"],
+  ["安吉丽娜朱莉", "angelina jolie lookalike: long dark hair, blue eyes, fair skin, full lips, distinctive cheekbones"],
+
+  // === 英文关键词 ===
   // 科技圈
-  ["elon musk", "elon musk lookalike: balding man with short brown hair, receding hairline, square jaw, blue eyes, fair skin, mid-50s, slight double chin, confident expression, stocky build"],
-  ["musk", "musk lookalike: balding man with short brown hair, receding hairline, square jaw, blue eyes, fair skin, mid-50s, stocky build"],
-  ["elon", "man resembling elon musk: balding short brown hair, square jaw, blue eyes, fair skin, mid-50s"],
-  ["mark zuckerberg", "zuckerberg lookalike: short curly brown hair, pale skin, blue eyes, narrow face, thin lips, young man, robotic expression"],
+  ["elon musk", "elon musk lookalike: balding man with short brown hair, receding hairline, square jaw, blue eyes, fair skin, mid-50s, stocky build"],
+  ["musk", "elon musk lookalike: balding man with short brown hair, receding hairline, square jaw, blue eyes, fair skin, mid-50s"],
+  ["mark zuckerberg", "zuckerberg lookalike: short curly brown hair, pale skin, blue eyes, narrow face, thin lips, young man"],
   ["zuckerberg", "zuckerberg lookalike: short curly brown hair, pale skin, blue eyes, narrow face, thin lips"],
-  ["zuck", "zuckerberg lookalike: short curly brown hair, pale skin, blue eyes, narrow face"],
-  ["steve jobs", "steve jobs lookalike: bald head, gray stubble beard, round glasses, gaunt face, fair skin, middle-aged man"],
-  ["tim cook", "tim cook lookalike: short gray hair, clean shaven, fair skin, blue eyes, slim face, middle-aged man"],
-  ["bill gates", "bill gates lookalike: balding with glasses, fair skin, blue eyes, round face, middle-aged man"],
-  ["jack ma", "jack ma lookalike: balding man, small stature, round face, dark eyes, East Asian, glasses, distinctive smile"],
-  ["ma yun", "jack ma lookalike: balding man, small stature, round face, dark eyes, East Asian, glasses"],
+  ["steve jobs", "steve jobs lookalike: bald head, gray stubble beard, round glasses, gaunt face, fair skin, middle-aged"],
+  ["tim cook", "tim cook lookalike: short gray hair, clean shaven, fair skin, blue eyes, slim face, middle-aged"],
+  ["bill gates", "bill gates lookalike: balding with glasses, fair skin, blue eyes, round face, middle-aged"],
+  ["jack ma", "jack ma lookalike: balding man, small stature, round face, dark eyes, East Asian, glasses"],
   ["ren zhengfei", "elderly Chinese man, balding gray hair, square glasses, weathered face, severe expression"],
   ["zhang yiming", "young Chinese man, short black hair, glasses, slim face, neutral expression"],
   ["lei jun", "middle-aged Chinese man, short black hair, round face, glasses, energetic smile"],
   // 政治圈
-  ["donald trump", "trump lookalike: blonde comb-over hairstyle, orange-tinted skin, blue eyes, broad face, pursed lips, heavyset build, late 70s man, distinctive squint"],
+  ["donald trump", "trump lookalike: blonde comb-over hairstyle, orange-tinted skin, blue eyes, broad face, pursed lips, heavyset build, late 70s man"],
   ["trump", "trump lookalike: blonde comb-over hair, orange skin, blue eyes, broad face, pursed lips, late 70s"],
-  ["joe biden", "biden lookalike: white thinning hair, blue eyes, fair skin, aviator sunglasses, wrinkled face, elderly man, warm smile"],
-  ["biden", "biden lookalike: white thinning hair, blue eyes, fair skin, wrinkled elderly face, warm smile"],
+  ["joe biden", "biden lookalike: white thinning hair, blue eyes, fair skin, wrinkled face, elderly man"],
+  ["biden", "biden lookalike: white thinning hair, blue eyes, fair skin, wrinkled elderly face"],
   ["barack obama", "obama lookalike: short cropped black hair, dark brown skin, brown eyes, slim face, warm smile, middle-aged Black man"],
-  ["obama", "obama lookalike: short cropped black hair, dark brown skin, brown eyes, slim face, warm smile"],
-  ["vladimir putin", "putin lookalike: balding blonde hair, blue eyes, pale skin, stern expression, compact build, late 60s man"],
+  ["obama", "obama lookalike: short cropped black hair, dark brown skin, brown eyes, slim face"],
+  ["vladimir putin", "putin lookalike: balding blonde hair, blue eyes, pale skin, stern expression, compact build, late 60s"],
   ["putin", "putin lookalike: balding blonde hair, blue eyes, pale skin, stern expression, late 60s"],
   ["xi jinping", "Chinese man, short black hair, broad face, dark eyes, portly build, stern expression, middle-aged"],
-  ["jinping", "Chinese man, short black hair, broad face, dark eyes, portly build, stern expression"],
-  ["kim jong un", "kim jong un lookalike: short black buzzcut, round flat face, dark eyes, overweight, East Asian, distinctive flat-top haircut"],
-  ["kim jong", "kim jong un lookalike: short black buzzcut, round face, dark eyes, overweight, East Asian"],
-  ["narendra modi", "modi lookalike: white hair, gray beard, dark skin, Indian man, traditional expression, elderly"],
+  ["jinping", "Chinese man, short black hair, broad face, dark eyes, portly build"],
+  ["kim jong un", "kim jong un lookalike: short black buzzcut, round flat face, dark eyes, overweight, East Asian"],
+  ["kim jong", "kim jong un lookalike: short black buzzcut, round face, dark eyes, overweight"],
+  ["narendra modi", "modi lookalike: white hair, gray beard, dark skin, Indian man, elderly"],
   ["modi", "modi lookalike: white hair, gray beard, dark skin, Indian man, elderly"],
-  ["emmanuel macron", "macron lookalike: short dark hair, blue eyes, fair skin, slim face, middle-aged French man"],
+  ["emmanuel macron", "macron lookalike: short dark hair, blue eyes, fair skin, slim face, middle-aged French"],
   ["macron", "macron lookalike: short dark hair, blue eyes, fair skin, slim face, middle-aged"],
-  ["zelensky", "zelensky lookalike: short brown hair, brown eyes, fair skin, stubble beard, olive green t-shirt, middle-aged man"],
-  ["zelenskyy", "zelensky lookalike: short brown hair, brown eyes, fair skin, stubble beard, middle-aged man"],
+  ["zelensky", "zelensky lookalike: short brown hair, brown eyes, fair skin, stubble beard, middle-aged"],
+  ["zelenskyy", "zelensky lookalike: short brown hair, brown eyes, fair skin, stubble beard"],
   // 娱乐/体育
-  ["kanye west", "kanye west lookalike: bald head, brown skin, brown eyes, full beard, stocky build, confident expression"],
+  ["kanye west", "kanye west lookalike: bald head, brown skin, brown eyes, full beard, stocky build"],
   ["kanye", "kanye west lookalike: bald head, brown skin, brown eyes, full beard"],
-  ["tom cruise", "tom cruise lookalike: short brown hair, blue eyes, fair skin, square jaw, distinctive crooked teeth, middle-aged man"],
-  ["brad pitt", "brad pitt lookalike: long blonde hair, blue eyes, fair skin, strong jaw, goatee, middle-aged man"],
-  ["leonardo dicaprio", "dicaprio lookalike: slicked back blonde hair, blue eyes, fair skin, round face, goatee, middle-aged man"],
-  ["leo dicaprio", "dicaprio lookalike: slicked back blonde hair, blue eyes, fair skin, round face, goatee"],
-  ["michael jordan", "jordan lookalike: bald head, dark brown skin, brown eyes, tall athletic build, distinctive ear shape, Black man"],
-  ["lebron james", "lebron lookalike: short black hair, dark brown skin, brown eyes, tall muscular build, beard, Black man"],
-  ["messi", "messi lookalike: short brown hair, brown eyes, fair skin, short beard, compact build, Argentine man"],
-  ["lionel messi", "messi lookalike: short brown hair, brown eyes, fair skin, short beard, compact build"],
-  ["cristiano ronaldo", "ronaldo lookalike: short dark hair, brown eyes, olive skin, muscular build, distinctive jaw, Portuguese man"],
-  ["ronaldo", "ronaldo lookalike: short dark hair, brown eyes, olive skin, muscular build, distinctive jaw"],
-  ["cr7", "ronaldo lookalike: short dark hair, brown eyes, olive skin, muscular build, distinctive jaw"],
-  ["david beckham", "beckham lookalike: short blonde hair, blue eyes, fair skin, handsome face, tattoos, slim build"],
-  ["tiger woods", "tiger woods lookalike: short black hair, brown skin, brown eyes, goatee, athletic build, mixed race man"],
-  ["snoop dogg", "snoop dogg lookalike: tall slim build, long braided black hair, dark brown skin, brown eyes, distinctive goatee, sunglasses"],
-  ["eminem", "eminem lookalike: short bleached blonde hair, blue eyes, fair skin, slim face, Caucasian man"],
-  ["drake", "drake lookalike: short black hair, dark beard, brown skin, brown eyes, stocky build, Black man"],
+  ["tom cruise", "tom cruise lookalike: short brown hair, blue eyes, fair skin, square jaw, middle-aged man"],
+  ["brad pitt", "brad pitt lookalike: long blonde hair, blue eyes, fair skin, strong jaw, goatee"],
+  ["leonardo dicaprio", "dicaprio lookalike: slicked back blonde hair, blue eyes, fair skin, round face, goatee"],
+  ["leo dicaprio", "dicaprio lookalike: slicked back blonde hair, blue eyes, fair skin, round face"],
+  ["michael jordan", "jordan lookalike: bald head, dark brown skin, brown eyes, tall athletic build, Black man"],
+  ["lebron james", "lebron lookalike: short black hair, dark brown skin, brown eyes, tall muscular build, beard, Black"],
+  ["messi", "messi lookalike: short brown hair, brown eyes, fair skin, short beard, compact build, Argentine"],
+  ["lionel messi", "messi lookalike: short brown hair, brown eyes, fair skin, short beard"],
+  ["cristiano ronaldo", "ronaldo lookalike: short dark hair, brown eyes, olive skin, muscular build, Portuguese"],
+  ["ronaldo", "ronaldo lookalike: short dark hair, brown eyes, olive skin, muscular build"],
+  ["cr7", "ronaldo lookalike: short dark hair, brown eyes, olive skin, muscular build"],
+  ["david beckham", "beckham lookalike: short blonde hair, blue eyes, fair skin, handsome face, tattoos"],
+  ["tiger woods", "tiger woods lookalike: short black hair, brown skin, brown eyes, goatee, athletic build"],
+  ["snoop dogg", "snoop dogg lookalike: tall slim build, long braided black hair, dark brown skin, goatee, sunglasses"],
+  ["eminem", "eminem lookalike: short bleached blonde hair, blue eyes, fair skin, slim face, Caucasian"],
+  ["drake", "drake lookalike: short black hair, dark beard, brown skin, brown eyes, stocky build, Black"],
   // 女性名人
   ["taylor swift", "taylor swift lookalike: long blonde straight hair, blue eyes, fair skin, red lips, slim face, young woman"],
   ["beyonce", "beyonce lookalike: long blonde wavy hair, light brown skin, brown eyes, curvy build, glamorous woman"],
-  ["lady gaga", "lady gaga lookalike: long blonde hair, blue eyes, fair skin, bold makeup, theatrical expression, young woman"],
-  ["rihanna", "rihanna lookalike: short dark hair, brown skin, green eyes, full lips, Barbadian woman, glamorous"],
-  ["adele", "adele lookalike: long red-blonde hair, blue eyes, fair skin, round face, fuller figure, British woman"],
+  ["lady gaga", "lady gaga lookalike: long blonde hair, blue eyes, fair skin, bold makeup, theatrical expression"],
+  ["rihanna", "rihanna lookalike: short dark hair, brown skin, green eyes, full lips, Barbadian woman"],
+  ["adele", "adele lookalike: long red-blonde hair, blue eyes, fair skin, round face, fuller figure, British"],
   ["miley cyrus", "miley cyrus lookalike: short blonde hair, blue eyes, fair skin, slim face, young woman"],
   ["katy perry", "katy perry lookalike: long dark hair, blue eyes, fair skin, full lips, young woman"],
   ["shakira", "shakira lookalike: long blonde wavy hair, brown eyes, fair skin, Colombian woman, slim build"],
@@ -89,8 +121,8 @@ const CELEB_TRAITS: [string, string][] = [
   ["scarlett johansson", "scarlett johansson lookalike: short blonde hair, blue eyes, fair skin, full lips, curvy figure"],
   ["angelina jolie", "angelina jolie lookalike: long dark hair, blue eyes, fair skin, full lips, distinctive cheekbones"],
   ["megan fox", "megan fox lookalike: long dark hair, blue eyes, fair skin, full lips, distinctive eyebrows"],
-  ["marilyn monroe", "marilyn monroe lookalike: short blonde curly hair, blue eyes, fair skin, beauty mark, red lips, 1950s glamour"],
-  ["audrey hepburn", "audrey hepburn lookalike: short dark hair, brown eyes, fair skin, slim face, elegant 1950s style"],
+  ["marilyn monroe", "marilyn monroe lookalike: short blonde curly hair, blue eyes, fair skin, beauty mark, red lips, 1950s"],
+  ["audrey hepburn", "audrey hepburn lookalike: short dark hair, brown eyes, fair skin, slim face, elegant 1950s"],
 ];
 
 const MALE_WORDS = [
@@ -176,6 +208,29 @@ function sniffImage(bytes: Buffer): { ok: true; ext: "jpeg" | "png" } | { ok: fa
   return { ok: false };
 }
 
+// Pollinations 2026-11 开始强制加 "pollinations.ai" 水印在右下角
+// nologo=true 参数已失效。用 sharp 裁掉底部 12%（水印固定在右下边缘）
+async function stripPollinationsWatermark(buffer: Buffer, ext: "jpeg" | "png"): Promise<Buffer> {
+  try {
+    const img = sharp(buffer);
+    const meta = await img.metadata();
+    const w = meta.width || 1024;
+    const h = meta.height || 1024;
+    // 裁掉底部 12% + 右边 12%，水印就在那个角落
+    const cropH = Math.floor(h * 0.88);
+    const cropW = Math.floor(w * 0.88);
+    const cropped = await sharp(buffer)
+      .extract({ left: 0, top: 0, width: cropW, height: cropH })
+      .resize(w, h) // 放大回原尺寸，保持清晰度
+      .toFormat(ext)
+      .toBuffer();
+    return cropped;
+  } catch (e: any) {
+    console.warn("[stripWatermark] sharp 裁剪失败，返回原图:", e.message);
+    return buffer;
+  }
+}
+
 async function generateWithPollinations(prompt: string, deadline?: number): Promise<string> {
   const encoded = encodeURIComponent(prompt);
   const seed = Math.floor(Math.random() * 1000000);
@@ -250,12 +305,15 @@ async function generateWithPollinations(prompt: string, deadline?: number): Prom
         const elapsed = Date.now() - startTime;
         clearTimeout(timeout);
         const status = response.status;
-        const transientFail = status === 429 || status === 500 || status === 502 || status === 503 || status === 504;
+        // Pollinations 2026-11 新限速: 402 FREE_LIMIT — 按 transient 处理
+        const transientFail =
+          status === 402 || status === 429 || status === 500 || status === 502 || status === 503 || status === 504;
         if (transientFail && retry === 0 && model.retries > 1) continue;
         if (!response.ok) break;
         const buffer = Buffer.from(await response.arrayBuffer());
         const sniff = sniffImage(buffer);
         if (!sniff.ok) {
+          // 402/限速时 Pollinations 返回 JSON（不是图片），所以 sniff 会失败
           if (retry === 0 && model.retries > 1) continue;
           break;
         }
@@ -267,12 +325,17 @@ async function generateWithPollinations(prompt: string, deadline?: number): Prom
         if (buffer.length < minBytes) {
           if (retry === 0 && model.retries > 1) continue;
           if (!isLast) break;
-          else if (buffer.length < 6000) break; // 链尾最后硬地板 6KB（接受有图比没图强）
+          else if (buffer.length < 6000) break;
         }
+        // 裁 Pollinations 强制水印（右下角 pollinations.ai）
+        let finalBuffer = buffer;
+        try {
+          finalBuffer = await stripPollinationsWatermark(buffer, sniff.ext);
+        } catch { /* already falls through to original */ }
         console.log(
-          `[Pollinations] ✅ SUCCESS ${model.id} — ${(buffer.length / 1024).toFixed(0)}KB ${sniff.ext} · ${elapsed}ms`,
+          `[Pollinations] ✅ SUCCESS ${model.id} — ${(finalBuffer.length / 1024).toFixed(0)}KB ${sniff.ext} · ${elapsed}ms (watermark stripped)`,
         );
-        return `data:image/${sniff.ext};base64,${buffer.toString("base64")}`;
+        return `data:image/${sniff.ext};base64,${finalBuffer.toString("base64")}`;
       } catch (e: any) {
         clearTimeout(timeout);
         if (retry === 0 && model.retries > 1 && (e.name === "AbortError" || /timeout|abort/i.test(e.message))) continue;
@@ -332,7 +395,10 @@ async function generateWithHuggingFace(prompt: string): Promise<string> {
         continue;
       }
       const ext = buffer[0] === 0xff ? "jpeg" : "png";
-      return `data:image/${ext};base64,${buffer.toString("base64")}`;
+      // 裁 Pollinations 强制水印
+      let finalBuf = buffer;
+      try { finalBuf = await stripPollinationsWatermark(buffer, ext); } catch {}
+      return `data:image/${ext};base64,${finalBuf.toString("base64")}`;
     } catch (e: any) {
       errors.push(`${att.qs || "default"}: ${e.name} ${e.message?.slice(0,60)}`);
       continue;
