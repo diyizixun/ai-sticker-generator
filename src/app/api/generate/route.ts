@@ -207,11 +207,24 @@ function sniffImage(bytes: Buffer): { ok: true; ext: "jpeg" | "png" } | { ok: fa
   return { ok: false };
 }
 
-// Pollinations 2026-11 开始强制加 "pollinations.ai" 水印在右下角
+// ⚠️ Pollinations 2026-11 起强制加 "pollinations.ai" 水印在右下角
 // nologo=true 参数已失效。水印在后端不裁，前端 canvas 裁（见 Gallery 组件）
+// ⚠️ Pollinations 严重 prompt hash 缓存：不管 model/host/endpoint，只认 prompt 字符串
+// 之前有人用"马斯克贴纸"得到粉发亚洲女人，现在每次请求都返回那个缓存
+// 解法：给每个 Pollinations 请求加随机 prompt 后缀打破缓存
+function makePollinationsPrompt(basePrompt: string): string {
+  // 每次生成随机 4-6 字母短词，让 Pollinations 认为是新 prompt
+  const words = ["studio photo", "high detail", "professional", "vibrant", "crisp", "sharp focus", "artistic", "cinematic"];
+  const pick1 = words[Math.floor(Math.random() * words.length)];
+  const pick2 = words[Math.floor(Math.random() * words.length)];
+  const suffix = `, ${pick1}, ${pick2}, seed-${Math.floor(Math.random() * 1000000)}`;
+  return basePrompt + suffix;
+}
 
 async function generateWithPollinations(prompt: string, deadline?: number): Promise<string> {
-  const encoded = encodeURIComponent(prompt);
+  // 加随机后缀打破 Pollinations 的 prompt hash 缓存
+  const realPrompt = makePollinationsPrompt(prompt);
+  const encoded = encodeURIComponent(realPrompt);
   const seed = Math.floor(Math.random() * 1000000);
 
   // 如果外部没传 deadline：默认 30s
@@ -325,7 +338,9 @@ async function generateWithPollinations(prompt: string, deadline?: number): Prom
 // HF Inference API 已弃用所有免费文生图模型（410 Gone），fal-ai provider 不支持 FLUX
 // 改为用 Pollinations 的不同模型 + 不同尺寸/seed 再试一轮
 async function generateWithHuggingFace(prompt: string): Promise<string> {
-  const encoded = encodeURIComponent(prompt);
+  // 同样加随机后缀打破缓存
+  const realPrompt = makePollinationsPrompt(prompt);
+  const encoded = encodeURIComponent(realPrompt);
   const MIN_KB_FALLBACK = 8;
   // 主链不同模型顺序 + 不同尺寸 + 双 host 轮换，再试一轮
   const fbHosts = ["https://gen.pollinations.ai", "https://image.pollinations.ai"];
