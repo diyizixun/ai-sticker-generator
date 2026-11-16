@@ -29,6 +29,7 @@ export default function StickerImage({
   const [retryCount, setRetryCount] = useState(0);
   const autoRetried = useRef(0);
   const [source, setSource] = useState<string>("");
+  const processedRef = useRef(false);
 
   const onQuotaUpdateRef = useRef(onQuotaUpdate);
   onQuotaUpdateRef.current = onQuotaUpdate;
@@ -36,6 +37,7 @@ export default function StickerImage({
   const generate = useCallback(async () => {
     setLoading(true);
     setLoadError(false);
+    processedRef.current = false;
     try {
       const params = new URLSearchParams({
         prompt: userPrompt,
@@ -85,6 +87,8 @@ export default function StickerImage({
   const handleImageReady = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     setLoading(false);
     setLoadError(false);
+    // 已经处理过裁剪了就跳过，避免无限循环
+    if (processedRef.current) return;
     try {
       const img = e.currentTarget;
       const w = img.naturalWidth || 512;
@@ -96,12 +100,25 @@ export default function StickerImage({
       if (ctx) {
         ctx.drawImage(img, 0, 0);
         // Pollinations 2026-11 强制加水印 "pollinations.ai" 在右下角
-        // 如果是 Pollinations 生成的，裁掉右下角 10%（水印固定在那个角落）
+        // 位置精确：右边 18%、底部 12% 区域
+        // 用背景色 fillRect 盖掉，不用 clearRect（JPEG 透明会变黑色）
         if (source === "pollinations" || source === "fallback2") {
-          ctx.clearRect(Math.floor(w * 0.88), Math.floor(h * 0.88), w, h);
-          console.log("[StickerImage] 裁掉 Pollinations 水印 (source=" + source + ")");
+          const x = Math.floor(w * 0.82);
+          const y = Math.floor(h * 0.90);
+          const cw = w - x;
+          const ch = h - y;
+          // 取图片右下角的背景色（贴纸白底/灰底都能适配）
+          const corner = ctx.getImageData(w - 5, h - 5, 1, 1).data;
+          const bgR = Math.min(255, corner[0] + 30);
+          const bgG = Math.min(255, corner[1] + 30);
+          const bgB = Math.min(255, corner[2] + 30);
+          ctx.fillStyle = `rgb(${bgR},${bgG},${bgB})`;
+          ctx.fillRect(x, y, cw, ch);
+          console.log("[StickerImage] 盖掉 Pollinations 水印 source=" + source);
         }
         const canvasDataUrl = canvas.toDataURL("image/jpeg", 0.92);
+        processedRef.current = true;
+        setDataUrl(canvasDataUrl);
         if (onImageReady) onImageReady(canvasDataUrl);
       }
     } catch {
