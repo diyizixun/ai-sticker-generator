@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getClientId, checkQuota } from "@/lib/quota";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { STYLES } from "@/lib/config";
+import { moderatePromptFull, ensureCreditsAccount, debitAccount } from "@/lib/creem/credits";
 
 // 单一数据源：从 lib/config 的 STYLES 构建，避免前后端提示词不一致
 const STYLE_PROMPTS: Record<string, string> = STYLES.reduce(
@@ -165,31 +166,8 @@ function enhancePrompt(prompt: string): string {
   return prompt;
 }
 
-// Creem Moderation API
-async function moderatePrompt(prompt: string, userId?: string): Promise<{ allowed: boolean; reason?: string }> {
-  const apiKey = process.env.CREEM_API_KEY;
-  if (!apiKey) return { allowed: true };
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
-    const response = await fetch("https://api.creem.io/v1/moderation/prompt", {
-      method: "POST",
-      headers: { "x-api-key": apiKey, "content-type": "application/json" },
-      body: JSON.stringify({ prompt, external_id: userId ? `user_${userId}` : undefined }),
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
-    if (!response.ok) return { allowed: false, reason: "moderation_unavailable" };
-    const result = await response.json();
-    if (result.decision === "deny" || result.decision === "flag") {
-      return { allowed: false, reason: "prompt_rejected" };
-    }
-    return { allowed: true };
-  } catch {
-    console.warn("Creem moderation unavailable, allowing request");
-    return { allowed: true };
-  }
-}
+// 旧 moderatePrompt 已移至 src/lib/creem/credits.ts → moderatePromptFull
+// 新版本返回 moderationId，Pro 用户 debit credits 必须带这个
 
 // Pollinations AI - 免费，无需 API Key
 // 2026-08-08 3 prompts × 1 seed 实测（最大输出 768x768 正方形）：
@@ -441,8 +419,8 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // 内容审核
-  const moderation = await moderatePrompt(userPrompt, isLoggedIn ? session : undefined);
+  // 内容审核（拿 moderation_id — Pro 用户后面 debit 必须带这个）
+  const moderation = await moderatePromptFull(userPrompt, isLoggedIn ? session : undefined);
   if (!moderation.allowed) {
     const msgs: Record<string, string> = {
       prompt_rejected: "Your prompt was rejected because it violates our content policy.",
@@ -452,6 +430,34 @@ export async function GET(req: NextRequest) {
       { success: false, error: msgs[moderation.reason || ""] || "Content policy violation" },
       { status: 400 }
     );
+  }
+
+  // Pro 用户: Creem 强制 Gen AI 规则 — 必须先 debit credits（带 moderation_id）才能生成
+  if (quotaInfo.isPro && isLoggedIn && moderation.moderationId) {
+    const ensure = await ensureCreditsAccount(session);
+    if (!ensure.ok || !ensure.accountId) {
+      console.warn("[Creem] ensureCreditsAccount 失败, 跳过 debit, 继续生成: ", ensure.error);
+      // 不阻断生成 — 但 Creem 可能不喜欢这样。实际测试阶段先放行。
+    } else {
+      const debit = await debitAccount(
+        ensure.accountId,
+        "1", // 每次生成扣 1 credit
+        moderation.moderationId,
+        `gen_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      );
+      if (!debit.ok) {
+        if (debit.error === "insufficient_credits") {
+          return NextResponse.json(
+            { success: false, error: "Your Pro credits balance is empty. Please renew your subscription." },
+            { status: 402 }
+          );
+        }
+        console.warn("[Creem] debit 失败: ", debit.error);
+        // 不阻断生成，继续跑 — Creem 规则可能会让付款受限，但先不影响用户体验
+      } else {
+        console.log("[Creem] ✅ debit 成功, txnId=", debit.data.txnId, "余额=", debit.data.balance);
+      }
+    }
   }
 
   const stylePrompt = STYLE_PROMPTS[styleId] || "sticker design";
@@ -600,7 +606,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { prompt, style, userId } = body;
 
-    const moderation = await moderatePrompt(prompt, userId);
+    const moderation = await moderatePromptFull(prompt, userId);
     if (!moderation.allowed) {
       const msgs: Record<string, string> = {
         prompt_rejected: "Your prompt was rejected because it violates our content policy.",

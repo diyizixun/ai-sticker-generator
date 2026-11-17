@@ -3,6 +3,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { STYLES } from "@/lib/config";
+import { supabaseAdmin } from "@/lib/supabase/admin";
+import { moderatePromptFull, ensureCreditsAccount, debitAccount } from "@/lib/creem/credits";
 
 // 单一数据源：从 lib/config 的 STYLES 构建，避免前后端提示词不一致
 const STYLE_PROMPTS: Record<string, string> = STYLES.reduce(
@@ -84,29 +86,7 @@ function enhancePrompt(prompt: string): string {
 }
 
 // Creem Moderation API
-async function moderatePrompt(prompt: string, userId?: string): Promise<{ allowed: boolean; reason?: string }> {
-  const apiKey = process.env.CREEM_API_KEY;
-  if (!apiKey) return { allowed: true };
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
-    const response = await fetch("https://api.creem.io/v1/moderation/prompt", {
-      method: "POST",
-      headers: { "x-api-key": apiKey, "content-type": "application/json" },
-      body: JSON.stringify({ prompt, external_id: userId ? `user_${userId}` : undefined }),
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
-    if (!response.ok) return { allowed: false, reason: "moderation_unavailable" };
-    const result = await response.json();
-    if (result.decision === "deny" || result.decision === "flag") {
-      return { allowed: false, reason: "prompt_rejected" };
-    }
-    return { allowed: true };
-  } catch {
-    return { allowed: true };
-  }
-}
+// 旧 moderatePrompt 已移至 src/lib/creem/credits.ts → moderatePromptFull
 
 // Pollinations 文本生成（免费，无需 API Key）
 // 2026-08-08 实测（最大输出 768x768 正方形）：
@@ -223,8 +203,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "File too large (max 5MB)" }, { status: 400 });
     }
 
-    // 审核提示词
-    const moderation = await moderatePrompt(prompt || "image to sticker", userId);
+    // 审核提示词（拿 moderationId — Pro 用户 debit credits 必须带）
+    const moderation = await moderatePromptFull(prompt || "image to sticker", userId);
     if (!moderation.allowed) {
       const msgs: Record<string, string> = {
         prompt_rejected: "Content policy violation",
@@ -234,6 +214,24 @@ export async function POST(req: NextRequest) {
         { success: false, error: msgs[moderation.reason || ""] || "Content policy violation" },
         { status: 400 }
       );
+    }
+
+    // Pro 用户: Creem Gen AI 规则 — 先 debit credits 再生成
+    let isPro = false;
+    if (userId && supabaseAdmin) {
+      const { data: u } = await supabaseAdmin.from("users").select("plan, subscription_status").eq("email", userId).single();
+      isPro = u?.plan === "pro" && u?.subscription_status === "active";
+    }
+    if (isPro && moderation.moderationId) {
+      const ensure = await ensureCreditsAccount(userId!);
+      if (ensure.ok && ensure.accountId) {
+        const debit = await debitAccount(ensure.accountId, "1", moderation.moderationId, `i2s_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`);
+        if (!debit.ok && debit.error !== "insufficient_credits") {
+          console.warn("[Creem] image-to-sticker debit 失败:", debit.error);
+        } else if (debit.ok) {
+          console.log("[Creem] i2s debit ✅, 余额=", debit.data.balance);
+        }
+      }
     }
 
     const stylePrompt = STYLE_PROMPTS[style] || "sticker design";
