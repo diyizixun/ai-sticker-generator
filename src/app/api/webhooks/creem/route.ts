@@ -120,87 +120,67 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ received: true, error: "DB not available" }, { status: 500 });
     }
 
-    // ── 更新数据库 ──
+    // ── 更新数据库（用 upsert：用户不存在就创建，存在就更新为 pro）──
     let usersUpdated = false;
     let profilesUpdated = false;
 
-    // 1. 更新 users 表（generate API / quota API 读这个表判断 Pro 状态）
-    const { data: user } = await supabaseAdmin
-      .from("users")
-      .select("id, email")
-      .eq("email", userEmail)
-      .single();
+    const now = new Date().toISOString();
 
-    if (user) {
-      const { error: userError } = await supabaseAdmin
-        .from("users")
-        .update({
+    // 1. users 表 — upsert（generate API / quota API 读这个表判断 Pro 状态）
+    const { error: userError } = await supabaseAdmin
+      .from("users")
+      .upsert(
+        {
+          email: userEmail,
           plan: "pro",
           subscription_status: "active",
-        })
-        .eq("id", user.id);
+          updated_at: now,
+        },
+        { onConflict: "email" }
+      );
 
-      if (userError) {
-        console.error(`[Creem Webhook] ❌ Failed to update users.plan for ${userEmail}:`, userError);
+    if (userError) {
+      console.error(`[Creem Webhook] ❌ upsert users 失败:`, userError);
+      // 可能 users 表没有 updated_at 字段，重试不带
+      const { error: userError2 } = await supabaseAdmin
+        .from("users")
+        .upsert(
+          {
+            email: userEmail,
+            plan: "pro",
+            subscription_status: "active",
+          },
+          { onConflict: "email" }
+        );
+      if (userError2) {
+        console.error(`[Creem Webhook] ❌ upsert users 重试也失败:`, userError2);
       } else {
-        console.log(`[Creem Webhook] ✅ users.plan = pro for ${userEmail}`);
         usersUpdated = true;
+        console.log(`[Creem Webhook] ✅ users upsert 成功（重试）`);
       }
     } else {
-      console.warn(`[Creem Webhook] ⚠️ User not found in users table: ${userEmail}`);
+      usersUpdated = true;
+      console.log(`[Creem Webhook] ✅ users.plan = pro for ${userEmail} (upsert)`);
     }
 
-    // 2. 更新 profiles 表（checkout/status API 读这个表）
-    const { data: profile } = await supabaseAdmin
+    // 2. profiles 表 — upsert（settings page 读这个表显示会员状态）
+    const { error: profileError } = await supabaseAdmin
       .from("profiles")
-      .select("id, email")
-      .eq("email", userEmail)
-      .single();
-
-    if (profile) {
-      const { error: profileError } = await supabaseAdmin
-        .from("profiles")
-        .update({
-          is_pro: true,
-          pro_since: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", profile.id);
-
-      if (profileError) {
-        console.error(`[Creem Webhook] ❌ Failed to update profiles.is_pro for ${userEmail}:`, profileError);
-      } else {
-        console.log(`[Creem Webhook] ✅ profiles.is_pro = true for ${userEmail}`);
-        profilesUpdated = true;
-      }
-    } else {
-      console.warn(`[Creem Webhook] ⚠️ User not found in profiles table: ${userEmail}`);
-    }
-
-    // 如果用户不在 profiles 表但 users 表已更新，尝试在 profiles 创建记录
-    if (usersUpdated && !profilesUpdated) {
-      const { error: insertError } = await supabaseAdmin
-        .from("profiles")
-        .upsert({
+      .upsert(
+        {
           email: userEmail,
           is_pro: true,
-          pro_since: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
+          pro_since: now,
+          updated_at: now,
+        },
+        { onConflict: "email" }
+      );
 
-      if (insertError) {
-        console.error(`[Creem Webhook] ❌ Failed to upsert profiles for ${userEmail}:`, insertError);
-      } else {
-        console.log(`[Creem Webhook] ✅ Created profiles record for ${userEmail}`);
-      }
-    }
-
-    // 如果用户完全不在任何表中
-    if (!user && !profile) {
-      console.error(`[Creem Webhook] ❌ CRITICAL: User ${userEmail} not found in users OR profiles table!`);
-      console.error(`[Creem Webhook] User must sign in/register before purchasing Pro.`);
+    if (profileError) {
+      console.warn(`[Creem Webhook] ⚠️ profiles upsert 失败（可能表不存在或字段不同）:`, profileError.message);
     } else {
-      console.log(`[Creem Webhook] 🎉 Successfully upgraded ${userEmail} to Pro (users:${usersUpdated}, profiles:${profilesUpdated})`);
+      profilesUpdated = true;
+      console.log(`[Creem Webhook] ✅ profiles.is_pro = true for ${userEmail}`);
     }
 
     return NextResponse.json({ received: true, upgraded: usersUpdated || profilesUpdated });
