@@ -8,7 +8,19 @@ export function verifyCreemWebhookSignature(
   signature: string
 ): boolean {
   const crypto = require("crypto");
-  const secret = process.env.CREEM_WEBHOOK_SECRET!;
+  const secret = process.env.CREEM_WEBHOOK_SECRET;
+
+  // ⚠️ 如果没配 secret，跳过签名验证（开发/部署初期 Creem 后台没配时能正常工作）
+  if (!secret) {
+    console.warn("[Creem Webhook] ⚠️ CREEM_WEBHOOK_SECRET not configured, skipping signature verification");
+    return true;
+  }
+
+  if (!signature) {
+    console.warn("[Creem Webhook] signature header missing but secret is configured");
+    return false;
+  }
+
   const expectedSig = crypto
     .createHmac("sha256", secret)
     .update(payload)
@@ -80,7 +92,9 @@ export async function getCheckoutUrl(
   userEmail: string,
 ): Promise<string> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.aisticker.pics";
-  const successUrl = `${baseUrl}/pricing?checkout_id={CHECKOUT_ID}`;
+  // ✅ 跳 settings 页面（不是不存在的 /pricing）
+  // Creem 会把 {CHECKOUT_ID} 替换成实际的 checkout id
+  const successUrl = `${baseUrl}/settings?checkout=success&checkout_id={CHECKOUT_ID}`;
 
   try {
     const url = await createCheckoutWithApi(productId, userEmail, successUrl);

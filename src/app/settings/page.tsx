@@ -48,13 +48,29 @@ export default function SettingsPage() {
       .catch(() => null)
       .finally(() => setLoading(false));
 
-    // 检查是否有 checkout 成功参数，自动刷新
+    // 付款成功后 → 轮询等 webhook 把 Supabase 更新成 pro
     const urlParams = new URLSearchParams(window.location.search);
     const checkoutStatus = urlParams.get("checkout");
     if (checkoutStatus === "success") {
-      setTimeout(() => {
-        window.location.href = window.location.pathname;
-      }, 2000);
+      let attempts = 0;
+      const maxAttempts = 20;
+      const pollInterval = setInterval(async () => {
+        attempts++;
+        try {
+          const r = await fetch("/api/user", { credentials: "include" });
+          if (r.ok) {
+            const d = await r.json();
+            setData(d); // 这里更新 state
+            if (d?.user?.plan === "pro") {
+              clearInterval(pollInterval);
+              window.history.replaceState({}, "", window.location.pathname);
+            }
+          }
+        } catch {
+          // ignore
+        }
+        if (attempts >= maxAttempts) clearInterval(pollInterval);
+      }, 1500); // 每 1.5 秒查一次，最多 30 秒
     }
   }, []);
 
