@@ -120,70 +120,69 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ received: true, error: "DB not available" }, { status: 500 });
     }
 
-    // ── 更新数据库（用 upsert：用户不存在就创建，存在就更新为 pro）──
+    // ── 更新数据库 ──
     let usersUpdated = false;
     let profilesUpdated = false;
+    const errors: string[] = [];
 
     const now = new Date().toISOString();
 
-    // 1. users 表 — upsert（generate API / quota API 读这个表判断 Pro 状态）
-    const { error: userError } = await supabaseAdmin
+    // 1. users 表 — 先 insert（可能第一次就成），如果冲突就 update
+    const { error: insertErr } = await supabaseAdmin
       .from("users")
-      .upsert(
-        {
-          email: userEmail,
-          plan: "pro",
-          subscription_status: "active",
-          updated_at: now,
-        },
-        { onConflict: "email" }
-      );
+      .insert({
+        email: userEmail,
+        plan: "pro",
+        subscription_status: "active",
+      });
 
-    if (userError) {
-      console.error(`[Creem Webhook] ❌ upsert users 失败:`, userError);
-      // 可能 users 表没有 updated_at 字段，重试不带
-      const { error: userError2 } = await supabaseAdmin
+    if (insertErr) {
+      // 可能已存在 → update
+      const { error: updateErr } = await supabaseAdmin
         .from("users")
-        .upsert(
-          {
-            email: userEmail,
-            plan: "pro",
-            subscription_status: "active",
-          },
-          { onConflict: "email" }
-        );
-      if (userError2) {
-        console.error(`[Creem Webhook] ❌ upsert users 重试也失败:`, userError2);
+        .update({ plan: "pro", subscription_status: "active" })
+        .eq("email", userEmail);
+
+      if (updateErr) {
+        errors.push(`users: ${insertErr.message} / update: ${updateErr.message}`);
+        console.error(`[Creem Webhook] ❌ users insert+update 都失败:`, insertErr.message, "|", updateErr.message);
       } else {
         usersUpdated = true;
-        console.log(`[Creem Webhook] ✅ users upsert 成功（重试）`);
+        console.log(`[Creem Webhook] ✅ users.update plan=pro for ${userEmail}`);
       }
     } else {
       usersUpdated = true;
-      console.log(`[Creem Webhook] ✅ users.plan = pro for ${userEmail} (upsert)`);
+      console.log(`[Creem Webhook] ✅ users.insert plan=pro for ${userEmail}`);
     }
 
-    // 2. profiles 表 — upsert（settings page 读这个表显示会员状态）
-    const { error: profileError } = await supabaseAdmin
+    // 2. profiles 表
+    const { error: pInsertErr } = await supabaseAdmin
       .from("profiles")
-      .upsert(
-        {
-          email: userEmail,
-          is_pro: true,
-          pro_since: now,
-          updated_at: now,
-        },
-        { onConflict: "email" }
-      );
+      .insert({ email: userEmail, is_pro: true, pro_since: now });
 
-    if (profileError) {
-      console.warn(`[Creem Webhook] ⚠️ profiles upsert 失败（可能表不存在或字段不同）:`, profileError.message);
+    if (pInsertErr) {
+      const { error: pUpdateErr } = await supabaseAdmin
+        .from("profiles")
+        .update({ is_pro: true, pro_since: now })
+        .eq("email", userEmail);
+
+      if (pUpdateErr) {
+        errors.push(`profiles: ${pInsertErr.message} / update: ${pUpdateErr.message}`);
+        console.warn(`[Creem Webhook] ⚠️ profiles 失败:`, pInsertErr.message);
+      } else {
+        profilesUpdated = true;
+      }
     } else {
       profilesUpdated = true;
-      console.log(`[Creem Webhook] ✅ profiles.is_pro = true for ${userEmail}`);
     }
 
-    return NextResponse.json({ received: true, upgraded: usersUpdated || profilesUpdated });
+    return NextResponse.json({
+      received: true,
+      upgraded: usersUpdated || profilesUpdated,
+      usersUpdated,
+      profilesUpdated,
+      errors: errors.length ? errors : undefined,
+    });
   } catch (error) {
     console.error("[Creem Webhook] ❌ Unexpected error:", error);
     return NextResponse.json({ error: "Webhook handler failed" }, { status: 500 });
