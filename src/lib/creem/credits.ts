@@ -175,7 +175,9 @@ export async function moderatePromptFull(prompt: string, externalId?: string): P
   moderationId?: string;
   reason?: string;
 }> {
-  const apiKey = process.env.CREEM_API_KEY;
+  // ⚠️ 必须用和 credits.ts 一样的 key 来源（inline 兜底 + env）
+  // 否则 Vercel 没配 CREEM_API_KEY 时 moderationId 为 undefined → credits 链路永远不触发！
+  const apiKey = CREEM_API_KEY;
   if (!apiKey) return { allowed: true };
   try {
     const controller = new AbortController();
