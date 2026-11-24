@@ -2,11 +2,10 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 // ⚠️ Inline fallback (Vercel env var 没配时也能正常工作)
-const INLINE_SUPABASE_URL = "https://tzrzefthqqbepoedsuji.supabase.co";
-const INLINE_SERVICE_ROLE_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR6cnplZnRocXFiZXBvZWRzdWppIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDg3Nzc0OSwiZXhwIjoyMTAwNDUzNzQ5fQ.9SHgg7hvMgM_jQt47hZ_c8T0Xd3g1rMuw92mHnuwO6w";
-const INLINE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR6cnplZnRocXFiZXBvZWRzdWppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ4Nzc0OSwiZXhwIjoyMTAwNDUzNzQ5fQ.ANON_PLACEHOLDER";
+// Supabase 2026 新 key 格式: sb_publishable_xxx / sb_secret_xxx
+const INLINE_SUPABASE_URL = "https://ghxqnpserqvrspganlqk.supabase.co";
+const INLINE_SERVICE_ROLE_KEY = "sb_publishable_MLB2XXObPDlAHIF-hZma7Q_18LWWPZ2"; // TODO: 换成 sb_secret_
+const INLINE_ANON_KEY = "sb_publishable_MLB2XXObPDlAHIF-hZma7Q_18LWWPZ2";
 
 let _serverClient: SupabaseClient | null = null;
 
