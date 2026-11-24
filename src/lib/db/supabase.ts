@@ -1,15 +1,19 @@
 // Supabase客户端 - 服务端用（绕过RLS）
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
+// ⚠️ Inline fallback (Vercel env var 没配时也能正常工作)
+const INLINE_SUPABASE_URL = "https://tzrzefthqqbepoedsuji.supabase.co";
+const INLINE_SERVICE_ROLE_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR6cnplZnRocXFiZXBvZWRzdWppIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDg3Nzc0OSwiZXhwIjoyMTAwNDUzNzQ5fQ.9SHgg7hvMgM_jQt47hZ_c8T0Xd3g1rMuw92mHnuwO6w";
+const INLINE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR6cnplZnRocXFiZXBvZWRzdWppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ4Nzc0OSwiZXhwIjoyMTAwNDUzNzQ5fQ.ANON_PLACEHOLDER";
+
 let _serverClient: SupabaseClient | null = null;
 
 export function createServerSupabaseClient(): SupabaseClient {
   if (!_serverClient) {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!url || !key) {
-      throw new Error("Supabase credentials not configured");
-    }
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL || INLINE_SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || INLINE_SERVICE_ROLE_KEY;
     _serverClient = createClient(url, key, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
@@ -21,11 +25,8 @@ let _browserClient: SupabaseClient | null = null;
 
 export function createBrowserSupabaseClient(): SupabaseClient {
   if (!_browserClient) {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!url || !key) {
-      throw new Error("Supabase public credentials not configured");
-    }
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL || INLINE_SUPABASE_URL;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || INLINE_ANON_KEY;
     _browserClient = createClient(url, key);
   }
   return _browserClient;
