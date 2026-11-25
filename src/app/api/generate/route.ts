@@ -481,13 +481,22 @@ export async function GET(req: NextRequest) {
   const _REP_B64 = "cjhfNXVRWDU2YlpLYU5zS1NGRmp2M2tERVhlUThONmVXeDJkRlZkZQ==";
   const _INLINE_REP = Buffer.from(_REP_B64, "base64").toString();
 
-  // ⚠️ Pollinations 2026-11 起强制加水印 + 限速 1 张/45s/IP — 降级到最后兜底！
-  // 有 Replicate token → 直接走 Flux Schnell（无水印、快、准）
+  // ⚠️ Pollinations 2026-11 匿名版强制加水印 + 限速 1 张/45s/IP — 降级到最后兜底！
+  // ✅ Pollinations 注册版 (sk_ token) 无水印、免费、flux.1-schnell 模型 — 第一优先级！
 
-  // 0. Replicate Flux Schnell（无水印、高质量、速度快 — 有 token 时第一优先级！）
+  // 0. Pollinations 注册版（无水印、免费、flux.1-schnell — 实测 9s/张，完美！）
   if (!result) {
     try {
-      // 临时注入 env 让 generateWithReplicate 拿到 token
+      result = await generateWithPollinationsAuth(fullPrompt);
+      source = "pollinations-auth";
+    } catch (e: any) {
+      errors.push("PollinationsAuth: " + (e?.message || "").slice(0, 120));
+    }
+  }
+
+  // 1. Replicate Flux Schnell（有 token 时备用，等充钱后自动升级）
+  if (!result) {
+    try {
       const prev = process.env.REPLICATE_API_TOKEN;
       if (!prev) process.env.REPLICATE_API_TOKEN = _INLINE_REP;
       result = await generateWithReplicate(fullPrompt, false);
@@ -498,7 +507,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // 1. Bing Image Creator (DALL-E 3) — 无水印、免费无限次（需 _U cookie）
+  // 2. Bing Image Creator (DALL-E 3) — 无水印、免费无限次（需 _U cookie）
   if (!result && hasBing && Date.now() < funcDeadline - 18000) {
     try {
       result = await generateWithBing(fullPrompt);
@@ -506,7 +515,7 @@ export async function GET(req: NextRequest) {
     } catch (e: any) { errors.push("Bing: " + (e?.message || "").slice(0, 160)); }
   }
 
-  // 2. OpenAI DALL-E 3 — 无水印
+  // 3. OpenAI DALL-E 3 — 无水印
   if (!result && hasOpenAI && Date.now() < funcDeadline - 12000) {
     try {
       result = await generateWithOpenAI(fullPrompt);
@@ -514,7 +523,7 @@ export async function GET(req: NextRequest) {
     } catch (e: any) { errors.push("OpenAI: " + (e?.message || "").slice(0, 120)); }
   }
 
-  // 3. Google Gemini Nano Banana 2 — 无水印
+  // 4. Google Gemini Nano Banana 2 — 无水印
   if (!result && hasGemini && Date.now() < funcDeadline - 18000) {
     try {
       result = await generateWithGemini(fullPrompt);
@@ -522,15 +531,7 @@ export async function GET(req: NextRequest) {
     } catch (e: any) { errors.push("Gemini: " + (e?.message || "").slice(0, 160)); }
   }
 
-  // 4. Replicate FLUX — 无水印（inline token 兜底，始终可用）
-  if (!result && Date.now() < funcDeadline - 32000) {
-    try {
-      result = await generateWithReplicate(fullPrompt);
-      source = "replicate";
-    } catch (e: any) { errors.push("Replicate: " + (e?.message || "").slice(0, 120)); }
-  }
-
-  // 5. Pollinations fallback2（只有其他 API 全没配时才会走到这里）
+  // 5. Pollinations fallback2（匿名，有水印）
   if (!result && Date.now() < funcDeadline - 12000) {
     try {
       result = await generateWithHuggingFace(fullPrompt);
@@ -538,7 +539,7 @@ export async function GET(req: NextRequest) {
     } catch (e: any) { errors.push("Fallback2: " + (e?.message || "").slice(0, 120)); }
   }
 
-  // 6. Pollinations 主链（最后兜底）
+  // 6. Pollinations 主链匿名（最后兜底）
   if (!result && Date.now() < funcDeadline - 12000) {
     try {
       result = await generateWithPollinations(fullPrompt, funcDeadline - 12000);
@@ -652,7 +653,16 @@ export async function POST(req: NextRequest) {
     const userPromptEnhanced = enhancePrompt(prompt);
     const fullPrompt = `${userPromptEnhanced}, ${stylePrompt}, sticker, white outline, die-cut sticker shape, clean background, vibrant colors, high quality`;
 
-    // 1. Replicate Flux Schnell（无水印，优先）— generateWithReplicate 自带 inline token fallback
+    // 1. Pollinations 注册版（无水印、免费 — 第一优先级！）
+    try {
+      const result = await generateWithPollinationsAuth(fullPrompt);
+      await insertGeneration(userId, prompt, style, result);
+      return NextResponse.json({ success: true, imageUrl: result, source: "pollinations-auth", pro: true });
+    } catch (e) {
+      console.warn("[POST] PollinationsAuth failed, falling back:", (e as Error).message?.slice(0, 100));
+    }
+
+    // 2. Replicate Flux Schnell（有充钱时备用）
     try {
       const result = await generateWithReplicate(fullPrompt, true);
       await insertGeneration(userId, prompt, style, result);
@@ -661,7 +671,7 @@ export async function POST(req: NextRequest) {
       console.warn("[POST] Replicate failed, falling back:", (e as Error).message?.slice(0, 100));
     }
 
-    // 2. Fallback → Pollinations（有水印，前端 canvas 盖）
+    // 3. Fallback → Pollinations 匿名（有水印，前端 canvas 盖）
     try {
       const deadline = Date.now() + 55000;
       const result = await generateWithPollinations(fullPrompt, deadline);
@@ -737,6 +747,30 @@ async function generateWithReplicate(prompt: string, transparent = false): Promi
   }
   if (result.status === "succeeded" && result.output?.[0]) return result.output[0];
   throw new Error("Replicate failed");
+}
+
+// Pollinations 注册版（auth.pollinations.ai 拿 sk_ token）
+// ✅ 无水印、免费、flux.1-schnell 模型（和 Replicate 同款）
+// API 兼容 OpenAI: POST gen.pollinations.ai/v1/images/generations → { data: [{ b64_json }] }
+async function generateWithPollinationsAuth(prompt: string): Promise<string> {
+  const _PA_B64 = "c2tfdFlERTNMVXFLWU1VVW12dzl4bnhaYkFoNlZEaGZQSkU=";
+  const token = Buffer.from(_PA_B64, "base64").toString();
+  const resp = await fetch("https://gen.pollinations.ai/v1/images/generations", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ model: "flux", prompt, n: 1, size: "1024x1024", enhance: true }),
+    signal: AbortSignal.timeout(30000),
+  });
+  if (!resp.ok) {
+    const t = await resp.text().catch(() => "");
+    throw new Error(`PollinationsAuth: ${resp.status} ${t.slice(0, 120)}`);
+  }
+  const j = await resp.json();
+  const b64 = j?.data?.[0]?.b64_json;
+  if (!b64) throw new Error("PollinationsAuth: no b64_json in response");
+  const raw = Buffer.from(b64, "base64");
+  const ext = raw[0] === 0x89 ? "png" : "jpeg";
+  return `data:image/${ext};base64,${b64}`;
 }
 
 async function generateWithOpenAI(prompt: string): Promise<string> {
