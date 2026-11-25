@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
     const { data: generations } = await supabaseAdmin
       .from("generations")
       .select("id, prompt, style, image_url, created_at")
-      .eq("user_email", session)
+      .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(8);
 
@@ -87,7 +87,7 @@ export async function GET(req: NextRequest) {
     const { count: todayCount } = await supabaseAdmin
       .from("generations")
       .select("*", { count: "exact", head: true })
-      .eq("user_email", session)
+      .eq("user_id", user.id)
       .gte("created_at", `${today}T00:00:00Z`)
       .lt("created_at", `${today}T23:59:59Z`);
 

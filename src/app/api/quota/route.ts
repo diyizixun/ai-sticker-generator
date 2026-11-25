@@ -10,17 +10,18 @@ export async function GET(req: NextRequest) {
 
     const { data: userRow } = await supabaseAdmin
       .from("users")
-      .select("plan, subscription_status")
+      .select("id, plan, subscription_status")
       .eq("email", session)
       .single();
 
+    const userId = userRow?.id;
     const isPro = userRow?.plan === "pro" && userRow?.subscription_status === "active";
     const dailyLimit = isPro ? 9999 : 10;
 
     const { count } = await supabaseAdmin
       .from("generations")
       .select("*", { count: "exact", head: true })
-      .eq("user_email", session)
+      .eq("user_id", userId)
       .gte("created_at", `${today}T00:00:00Z`)
       .lt("created_at", `${today}T23:59:59Z`);
 

@@ -392,15 +392,16 @@ export async function GET(req: NextRequest) {
     const today = new Date().toISOString().split("T")[0];
     const { data: userRow } = await supabaseAdmin!
       .from("users")
-      .select("plan, subscription_status")
+      .select("id, plan, subscription_status")
       .eq("email", session)
       .single();
+    const userId = userRow?.id;
     const isPro = userRow?.plan === "pro" && userRow?.subscription_status === "active";
     const dailyLimit = isPro ? 9999 : 10;
     const { count } = await supabaseAdmin!
       .from("generations")
       .select("*", { count: "exact", head: true })
-      .eq("user_email", session)
+      .eq("user_id", userId)
       .gte("created_at", `${today}T00:00:00Z`)
       .lt("created_at", `${today}T23:59:59Z`);
     const used = count || 0;
@@ -557,15 +558,28 @@ export async function GET(req: NextRequest) {
   // 生成成功：存 DB + 更新 quota
   let remaining: number;
   if (isLoggedIn) {
-    await supabaseAdmin!
-      .from("generations")
-      .insert({
-        user_email: session!,
-        prompt: userPrompt,
-        style: styleId,
-        image_url: result,
-        created_at: new Date().toISOString(),
-      });
+    // 查 user_id 用于 generations insert（generations 表只有 user_id 没有 user_email）
+    let userId: string | undefined;
+    try {
+      const { data: u } = await supabaseAdmin!
+        .from("users")
+        .select("id")
+        .eq("email", session!)
+        .single();
+      userId = u?.id;
+    } catch {}
+
+    if (userId) {
+      await supabaseAdmin!
+        .from("generations")
+        .insert({
+          user_id: userId,
+          prompt: userPrompt,
+          style: styleId,
+          image_url: result,
+          created_at: new Date().toISOString(),
+        });
+    }
     try {
       const { data: u } = await supabaseAdmin!
         .from("users")
@@ -584,7 +598,7 @@ export async function GET(req: NextRequest) {
     const { count } = await supabaseAdmin!
       .from("generations")
       .select("*", { count: "exact", head: true })
-      .eq("user_email", session)
+      .eq("user_id", userId)
       .gte("created_at", `${today}T00:00:00Z`)
       .lt("created_at", `${today}T23:59:59Z`);
     remaining = quotaInfo.isPro ? 9999 : Math.max(0, quotaInfo.limit - (count || 0));
@@ -625,15 +639,27 @@ export async function POST(req: NextRequest) {
         const fullPrompt = `${userPromptEnhanced}, ${stylePrompt}, sticker, white outline, die-cut sticker shape, clean background, vibrant colors, high quality`;
         const result = await generateWithReplicate(fullPrompt, true);
         if (userId && supabaseAdmin) {
-          await supabaseAdmin
-            .from("generations")
-            .insert({
-              user_email: userId,
-              prompt,
-              style,
-              image_url: result,
-              created_at: new Date().toISOString(),
-            });
+          // userId 实际是前端传的 email，需要先查 users 表拿真正的 uuid
+          let realUserId: string | undefined;
+          try {
+            const { data: u } = await supabaseAdmin
+              .from("users")
+              .select("id")
+              .eq("email", userId)
+              .single();
+            realUserId = u?.id;
+          } catch {}
+          if (realUserId) {
+            await supabaseAdmin
+              .from("generations")
+              .insert({
+                user_id: realUserId,
+                prompt,
+                style,
+                image_url: result,
+                created_at: new Date().toISOString(),
+              });
+          }
         }
         return NextResponse.json({ success: true, imageUrl: result, pro: true });
       } catch (e) {
