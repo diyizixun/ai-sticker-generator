@@ -5,6 +5,7 @@ import { useSession } from "@/hooks/useSession";
 import { STYLES } from "@/lib/config";
 import StickerImage from "@/components/StickerImage";
 import LoginModal from "@/components/LoginModal";
+import ProDownloadButton from "@/components/ProDownload";
 import { getLocalQuota, incrementLocalQuota } from "@/lib/clientQuota";
 import QuotaLimitNotice from "@/components/QuotaLimitNotice";
 
@@ -28,18 +29,29 @@ export default function ResultClient({
   const [regenerateKey, setRegenerateKey] = useState(0);
   const [quota, setQuota] = useState<{ remaining: number; limit: number } | null>(null);
   const [loginOpen, setLoginOpen] = useState(false);
+  const [isPro, setIsPro] = useState(false);
 
-  // 获取配额：登录用户走 API（DB），匿名用户走 localStorage（服务端内存在 Vercel 冷启动后会重置，不可靠）
+  // 获取配额 + Pro 状态
   useEffect(() => {
     if (status === "loading") return;
     if (status === "authenticated" && session?.email) {
-      fetch("/api/quota")
+      fetch("/api/user")
         .then((r) => r.json())
-        .then((d) => setQuota(d))
-        .catch(() => {});
+        .then((d) => {
+          setQuota(d.quota);
+          const u = d.user || {};
+          setIsPro(u.plan === "pro" && u.subscriptionStatus === "active");
+        })
+        .catch(() => {
+          // fallback: 单独查 quota
+          fetch("/api/quota")
+            .then((r) => r.json())
+            .then((d) => setQuota(d))
+            .catch(() => {});
+        });
     } else {
-      // 匿名用户：localStorage 是唯一数据源
       setQuota(getLocalQuota());
+      setIsPro(false);
     }
   }, [regenerateKey, status, session]);
 
@@ -182,15 +194,41 @@ export default function ResultClient({
                 <p className="text-xs text-gray-500">Die-cut · Print-ready · Upload to Redbubble, WhatsApp, Discord</p>
               </div>
             </div>
-            <a
-              href="/pricing"
-              className="w-full py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 flex items-center justify-center gap-2 transition-all shadow-md shadow-purple-200"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15V3M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4m4-5l5 5 5-5" />
-              </svg>
-              Remove Background &amp; Download PNG
-            </a>
+            {isPro ? (
+              generatedUrl ? (
+                <ProDownloadButton imageUrl={generatedUrl} prompt={userPrompt} />
+              ) : (
+                <button
+                  disabled
+                  className="w-full py-3 rounded-xl font-semibold text-white bg-gray-300 cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  Generating...
+                </button>
+              )
+            ) : (
+              status === "authenticated" ? (
+                // 已登录但非 Pro → 免费放开背景去除（反正 Pollinations 免费）
+                generatedUrl ? (
+                  <ProDownloadButton imageUrl={generatedUrl} prompt={userPrompt} />
+                ) : (
+                  <button
+                    disabled
+                    className="w-full py-3 rounded-xl font-semibold text-white bg-gray-300 cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    Generating...
+                  </button>
+                )
+              ) : (
+                // 未登录 → 登录后再用
+                <a
+                  href="#"
+                  onClick={(e) => { e.preventDefault(); setLoginOpen(true); }}
+                  className="w-full py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 flex items-center justify-center gap-2 transition-all shadow-md shadow-purple-200"
+                >
+                  Sign in to Remove Background
+                </a>
+              )
+            )}
           </div>
         </div>
 
