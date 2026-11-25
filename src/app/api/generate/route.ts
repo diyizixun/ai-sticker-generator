@@ -632,44 +632,59 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const stylePrompt = STYLE_PROMPTS[style] || "sticker design";
+    const userPromptEnhanced = enhancePrompt(prompt);
+    const fullPrompt = `${userPromptEnhanced}, ${stylePrompt}, sticker, white outline, die-cut sticker shape, clean background, vibrant colors, high quality`;
+
+    // 1. Replicate Flux Schnell（无水印，优先）
     if (process.env.REPLICATE_API_TOKEN) {
       try {
-        const stylePrompt = STYLE_PROMPTS[style] || "sticker design";
-        const userPromptEnhanced = enhancePrompt(prompt);
-        const fullPrompt = `${userPromptEnhanced}, ${stylePrompt}, sticker, white outline, die-cut sticker shape, clean background, vibrant colors, high quality`;
         const result = await generateWithReplicate(fullPrompt, true);
-        if (userId && supabaseAdmin) {
-          // userId 实际是前端传的 email，需要先查 users 表拿真正的 uuid
-          let realUserId: string | undefined;
-          try {
-            const { data: u } = await supabaseAdmin
-              .from("users")
-              .select("id")
-              .eq("email", userId)
-              .single();
-            realUserId = u?.id;
-          } catch {}
-          if (realUserId) {
-            await supabaseAdmin
-              .from("generations")
-              .insert({
-                user_id: realUserId,
-                prompt,
-                style,
-                image_url: result,
-                created_at: new Date().toISOString(),
-              });
-          }
-        }
-        return NextResponse.json({ success: true, imageUrl: result, pro: true });
+        await insertGeneration(userId, prompt, style, result);
+        return NextResponse.json({ success: true, imageUrl: result, source: "replicate", pro: true });
       } catch (e) {
-        console.error("Pro Replicate failed:", e);
+        console.warn("[POST] Replicate failed, falling back:", (e as Error).message?.slice(0, 100));
       }
     }
 
-    return NextResponse.json({ success: false, error: "Pro generation unavailable" }, { status: 503 });
+    // 2. Fallback → Pollinations（有水印，前端 canvas 盖）
+    try {
+      const deadline = Date.now() + 55000;
+      const result = await generateWithPollinations(fullPrompt, deadline);
+      await insertGeneration(userId, prompt, style, result);
+      return NextResponse.json({ success: true, imageUrl: result, source: "pollinations", pro: false });
+    } catch (e) {
+      console.warn("[POST] Pollinations fallback failed:", (e as Error).message?.slice(0, 100));
+    }
+
+    return NextResponse.json({ success: false, error: "Generation busy, retry in a moment" }, { status: 503 });
   } catch {
     return NextResponse.json({ success: false, error: "Server error" }, { status: 500 });
+  }
+}
+
+// 复用：插入 generation 记录
+async function insertGeneration(userId: string | undefined, prompt: string, style: string, imageUrl: string) {
+  if (!userId || !supabaseAdmin) return;
+  try {
+    let realUserId: string | undefined;
+    const { data: u } = await supabaseAdmin
+      .from("users")
+      .select("id")
+      .eq("email", userId)
+      .single();
+    realUserId = u?.id;
+    if (realUserId) {
+      await supabaseAdmin.from("generations").insert({
+        user_id: realUserId,
+        prompt,
+        style,
+        image_url: imageUrl || null,
+        created_at: new Date().toISOString(),
+      });
+    }
+  } catch (e) {
+    console.warn("[insertGeneration] failed:", (e as Error).message?.slice(0, 100));
   }
 }
 
