@@ -17,32 +17,85 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 
 /**
  * 从 Creem webhook payload 中提取用户邮箱。
- * 按可靠性排序尝试多个路径。
+ * ⚠️ 2026-11-25 基于真实 Creem payload 结构重写！
+ * 真实结构: {
+ *   "type": "checkout.completed",
+ *   "request_id": "user@domain.com_timestamp",    ← 路径 1
+ *   "order": {                                      ← 路径 2
+ *     "customer": { "email": "user@domain.com" }
+ *   },
+ *   "subscription": {                               ← 路径 3
+ *     "customer_email": "user@domain.com",
+ *     "metadata": { "user_email": "..." }
+ *   }
+ * }
  */
 function extractUserEmail(event: Record<string, unknown>): string | null {
+  const eventType = (event.type as string) || "";
+
+  // ⭐ 路径 1: request_id 里直接带邮箱（checkout 时 our code 传的 request_id）
+  //    格式: "user@domain.com_timestamp" → 取 @ 开头那部分
+  const requestId = event.request_id as string | undefined;
+  if (requestId && requestId.includes("@")) {
+    const match = requestId.match(/([\w.+-]+@[\w-]+\.[\w.-]+)/);
+    if (match) return match[1].toLowerCase();
+  }
+
+  // ⭐ 路径 2: order.customer.email（checkout.completed 事件）
+  const order = event.order as Record<string, unknown> | undefined;
+  if (order) {
+    const oCust = order.customer as Record<string, unknown> | undefined;
+    if (oCust?.email && typeof oCust.email === "string" && oCust.email.includes("@")) {
+      return (oCust.email as string).toLowerCase();
+    }
+  }
+
+  // ⭐ 路径 3: subscription 对象（subscription.active / subscription.paid 事件）
+  const sub = event.subscription as Record<string, unknown> | undefined;
+  if (sub) {
+    // subscription.customer_email
+    const subCustEmail = sub.customer_email as string | undefined;
+    if (subCustEmail && subCustEmail.includes("@")) return subCustEmail.toLowerCase();
+
+    // subscription.metadata.user_email
+    const subMeta = sub.metadata as Record<string, unknown> | undefined;
+    const subMetaEmail = subMeta?.user_email as string | undefined;
+    if (subMetaEmail && subMetaEmail.includes("@")) return subMetaEmail.toLowerCase();
+  }
+
+  // ⭐ 路径 4: customer 直接在根（某些事件）
+  const cust = event.customer as Record<string, unknown> | undefined;
+  if (cust?.email && typeof cust.email === "string" && cust.email.includes("@")) {
+    return (cust.email as string).toLowerCase();
+  }
+
+  // 旧路径 fallback：event.object.*（我们之前假设的，可能某些场景 Creem 还保留）
   const obj = event.object as Record<string, unknown> | undefined;
+  if (obj) {
+    const oCust = obj.customer as Record<string, unknown> | undefined;
+    if (oCust?.email && typeof oCust.email === "string" && oCust.email.includes("@")) {
+      return (oCust.email as string).toLowerCase();
+    }
+    const oSubCust = (obj.subscription as Record<string, unknown> | undefined)?.customer_email as string | undefined;
+    if (oSubCust && oSubCust.includes("@")) return oSubCust.toLowerCase();
+    const oMeta = obj.metadata as Record<string, unknown> | undefined;
+    const oMetaEmail = oMeta?.user_email as string | undefined;
+    if (oMetaEmail && oMetaEmail.includes("@")) return oMetaEmail.toLowerCase();
+  }
 
-  // 1. 最可靠：customer.email（Creem 原生字段）
-  const custEmail = (obj?.customer as Record<string, unknown> | undefined)?.email;
-  if (typeof custEmail === "string" && custEmail.includes("@")) return custEmail.toLowerCase();
+  // 最后 fallback: request_id 里搜 @xxx
+  if (requestId) {
+    const atIdx = requestId.indexOf("@");
+    if (atIdx > 0) {
+      const email = requestId.substring(0, atIdx);
+      const domainStart = atIdx + 1;
+      const underscoreIdx = requestId.indexOf("_", domainStart);
+      const domain = underscoreIdx > 0 ? requestId.substring(domainStart, underscoreIdx) : requestId.substring(domainStart);
+      return `${email}@${domain}`.toLowerCase();
+    }
+  }
 
-  // 2. metadata.user_email（checkout 时传入的自定义字段）
-  const metaEmail = (obj?.metadata as Record<string, unknown> | undefined)?.user_email;
-  if (typeof metaEmail === "string" && metaEmail.includes("@")) return metaEmail.toLowerCase();
-
-  // 3. subscription.metadata.user_email
-  const subMeta = (obj?.subscription as Record<string, unknown> | undefined)?.metadata as Record<string, unknown> | undefined;
-  const subEmail = subMeta?.user_email;
-  if (typeof subEmail === "string" && subEmail.includes("@")) return subEmail.toLowerCase();
-
-  // 4. 兼容旧版：event.data.customer.email（如果 Creem 改版）
-  const data = event.data as Record<string, unknown> | undefined;
-  const dataCustEmail = (data?.customer as Record<string, unknown> | undefined)?.email;
-  if (typeof dataCustEmail === "string" && dataCustEmail.includes("@")) return dataCustEmail.toLowerCase();
-
-  const dataMetaEmail = (data?.metadata as Record<string, unknown> | undefined)?.user_email;
-  if (typeof dataMetaEmail === "string" && dataMetaEmail.includes("@")) return dataMetaEmail.toLowerCase();
-
+  console.error("[Creem Webhook] ❌ extractUserEmail failed! Full payload keys:", Object.keys(event));
   return null;
 }
 
@@ -56,20 +109,34 @@ function isPaymentSuccessEvent(event: Record<string, unknown>): boolean {
     "checkout.completed",
     "checkout.paid",
     "payment.succeeded",
-    "subscription.active",       // ⚠️ 订阅首次激活 — 月付/年付购买时发这个！
-    "subscription.paid",         // 订阅续费付款
+    "subscription.active",
+    "subscription.paid",
     "subscription.trialing",
   ];
 
   if (paymentEvents.includes(eventType)) return true;
 
-  // 有些版本 event.type 可能为空，改用 object.status 判断
-  const obj = event.object as Record<string, unknown> | undefined;
-  if (obj?.status === "completed" || obj?.status === "active") return true;
+  // 根层级 status
+  const rootStatus = event.status as string | undefined;
+  if (rootStatus === "completed" || rootStatus === "active" || rootStatus === "paid") return true;
 
-  // 检查 subscription 状态
-  const sub = obj?.subscription as Record<string, unknown> | undefined;
-  if (sub?.status === "active" || sub?.status === "trialing") return true;
+  // order.status
+  const order = event.order as Record<string, unknown> | undefined;
+  const orderStatus = order?.status as string | undefined;
+  if (orderStatus === "completed" || orderStatus === "paid") return true;
+
+  // subscription.status
+  const sub = event.subscription as Record<string, unknown> | undefined;
+  const subStatus = sub?.status as string | undefined;
+  if (subStatus === "active" || subStatus === "trialing" || subStatus === "paid") return true;
+
+  // 旧 fallback: event.object.*
+  const obj = event.object as Record<string, unknown> | undefined;
+  if (obj) {
+    if (obj.status === "completed" || obj.status === "active") return true;
+    const oSub = obj.subscription as Record<string, unknown> | undefined;
+    if (oSub?.status === "active" || oSub?.status === "trialing") return true;
+  }
 
   return false;
 }
