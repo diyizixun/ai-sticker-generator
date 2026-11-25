@@ -10,6 +10,7 @@ import {
   Loader2,
   CheckCircle,
   XCircle,
+  X,
 } from "lucide-react";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
@@ -40,6 +41,7 @@ export default function SettingsPage() {
   const [data, setData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<{ url: string; prompt: string } | null>(null);
 
   useEffect(() => {
     fetch("/api/user", { credentials: "include" })
@@ -309,19 +311,69 @@ export default function SettingsPage() {
               <h2 className="font-semibold text-gray-900 mb-4">Recent Stickers</h2>
               <div className="grid grid-cols-4 gap-3">
                 {data.generations.slice(0, 8).map((gen) => (
-                  <div
+                  <button
                     key={gen.id}
-                    className="aspect-square rounded-lg bg-gray-50 border border-gray-100 overflow-hidden"
+                    type="button"
+                    onClick={() => gen.imageUrl && setSelectedImage({ url: gen.imageUrl, prompt: gen.prompt })}
+                    className="aspect-square rounded-lg bg-gray-50 border border-gray-100 overflow-hidden hover:border-gray-300 hover:shadow-md transition-all cursor-pointer group relative"
+                    title={gen.prompt}
                   >
-                    {gen.imageUrl && gen.imageUrl !== "base64_stored" && (
-                      <img
-                        src={gen.imageUrl}
-                        alt={gen.prompt}
-                        className="w-full h-full object-contain"
-                      />
+                    {gen.imageUrl && gen.imageUrl !== "base64_stored" ? (
+                      <>
+                        <img
+                          src={gen.imageUrl}
+                          alt={gen.prompt}
+                          className="w-full h-full object-contain"
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                          <span className="text-white text-xs font-medium bg-black/60 px-2 py-1 rounded">点击查看</span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">无预览</div>
                     )}
-                  </div>
+                  </button>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* Lightbox Modal */}
+          {selectedImage && (
+            <div
+              className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+              onClick={() => setSelectedImage(null)}
+            >
+              <div
+                className="relative max-w-3xl w-full"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  type="button"
+                  onClick={() => setSelectedImage(null)}
+                  className="absolute -top-10 right-0 text-white/80 hover:text-white p-1"
+                  aria-label="Close"
+                >
+                  <X size={24} />
+                </button>
+                <img
+                  src={selectedImage.url}
+                  alt={selectedImage.prompt}
+                  className="w-full rounded-lg"
+                />
+                <div className="mt-3 flex items-center justify-between text-white/80 text-sm">
+                  <span className="truncate flex-1 mr-4">{selectedImage.prompt}</span>
+                  <a
+                    href={selectedImage.url}
+                    download={`sticker-${selectedImage.prompt.slice(0, 20)}.png`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-md transition-colors"
+                  >
+                    <Download size={14} />
+                    下载
+                  </a>
+                </div>
               </div>
             </div>
           )}
