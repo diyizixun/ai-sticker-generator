@@ -34,13 +34,10 @@ function extractUserEmail(event: Record<string, unknown>): string | null {
   const eventType = (event.type as string) || "";
 
   // ⭐ 路径 1: request_id 里直接带邮箱（checkout 时 our code 传的 request_id）
-  //    格式: "user@domain.com_timestamp" → 正则不能匹配 _（因为 \w 包含 _）
+  //    格式: "user@domain.com_timestamp" → 正则不匹配 _ 和数字后缀
   const requestId = event.request_id as string | undefined;
   if (requestId) {
-    console.log("[extract] request_id raw:", requestId);
-    // 非贪婪：邮箱部分不含 _ 和数字后缀
     const match = requestId.match(/([a-zA-Z0-9.+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
-    console.log("[extract] regex match:", match);
     if (match && match[1].includes("@")) return match[1].toLowerCase();
   }
 
