@@ -52,17 +52,24 @@ function extractUserEmail(event: Record<string, unknown>): string | null {
  */
 function isPaymentSuccessEvent(event: Record<string, unknown>): boolean {
   const eventType = (event.type as string) || "";
-  const paymentEvents = ["checkout.completed", "subscription.paid", "checkout.paid", "payment.succeeded"];
+  const paymentEvents = [
+    "checkout.completed",
+    "checkout.paid",
+    "payment.succeeded",
+    "subscription.active",       // ⚠️ 订阅首次激活 — 月付/年付购买时发这个！
+    "subscription.paid",         // 订阅续费付款
+    "subscription.trialing",
+  ];
 
   if (paymentEvents.includes(eventType)) return true;
 
   // 有些版本 event.type 可能为空，改用 object.status 判断
   const obj = event.object as Record<string, unknown> | undefined;
-  if (obj?.status === "completed") return true;
+  if (obj?.status === "completed" || obj?.status === "active") return true;
 
   // 检查 subscription 状态
   const sub = obj?.subscription as Record<string, unknown> | undefined;
-  if (sub?.status === "active") return true;
+  if (sub?.status === "active" || sub?.status === "trialing") return true;
 
   return false;
 }
